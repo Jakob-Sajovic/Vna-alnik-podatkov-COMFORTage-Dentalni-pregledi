@@ -2,15 +2,15 @@
 <OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:bt="http://schemas.microsoft.com/office/officeappbasictypes/1.0" xmlns:ov="http://schemas.microsoft.com/office/taskpaneappversionoverrides" xsi:type="TaskPaneApp">
   <Id>f02c39f4-e850-4092-a3b7-749484651c89</Id>
   <Version>1.0.0.0</Version>
-  <ProviderName>Contoso</ProviderName>
+  <ProviderName>COMFORTage</ProviderName>
   <DefaultLocale>en-US</DefaultLocale>
-  <DisplayName DefaultValue="DentalExam"/>
-  <Description DefaultValue="A template to get started."/>
+  <DisplayName DefaultValue="Dentalni pregled"/>
+  <Description DefaultValue="Vnašalnik podatkov za dentalne preglede — COMFORTage"/>
   <IconUrl DefaultValue="https://localhost:3000/assets/icon-32.png"/>
   <HighResolutionIconUrl DefaultValue="https://localhost:3000/assets/icon-64.png"/>
-  <SupportUrl DefaultValue="https://www.contoso.com/help"/>
+  <SupportUrl DefaultValue="https://github.com/Jakob-Sajovic/Vna-alnik-podatkov-COMFORTage-Dentalni-pregledi"/>
   <AppDomains>
-    <AppDomain>https://www.contoso.com</AppDomain>
+    <AppDomain>https://jakob-sajovic.github.io</AppDomain>
   </AppDomains>
   <Hosts>
     <Host Name="Workbook"/>
@@ -73,13 +73,13 @@
         <bt:Url id="Taskpane.Url" DefaultValue="https://localhost:3000/taskpane.html"/>
       </bt:Urls>
       <bt:ShortStrings>
-        <bt:String id="GetStarted.Title" DefaultValue="Get started with your sample add-in!"/>
-        <bt:String id="CommandsGroup.Label" DefaultValue="Commands Group"/>
-        <bt:String id="TaskpaneButton.Label" DefaultValue="Show Task Pane"/>
+        <bt:String id="GetStarted.Title" DefaultValue="Dentalni pregled"/>
+        <bt:String id="CommandsGroup.Label" DefaultValue="Dentalni pregled"/>
+        <bt:String id="TaskpaneButton.Label" DefaultValue="Dentalni pregled"/>
       </bt:ShortStrings>
       <bt:LongStrings>
-        <bt:String id="GetStarted.Description" DefaultValue="Your sample add-in loaded successfully. Go to the HOME tab and click the 'Show Task Pane' button to get started."/>
-        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Click to Show a Taskpane"/>
+        <bt:String id="GetStarted.Description" DefaultValue="Dodatek za vnos podatkov dentalnih pregledov. Kliknite gumb 'Dentalni pregled' za začetek."/>
+        <bt:String id="TaskpaneButton.Tooltip" DefaultValue="Odpri vnašalnik podatkov za dentalni pregled"/>
       </bt:LongStrings>
     </Resources>
   </VersionOverrides>
