@@ -1,6 +1,6 @@
-# DentalExam — Excel Office Add-in
+# Vnašalnik podatkov COMFORTage — Dentalni pregledi
 
-An Excel task pane add-in for comprehensive dental examination data entry and PDF report generation. Built for the COMFORTage research project.
+Excel add-in for dental examination data input, saving, loading and PDF report generation. Built for the COMFORTage research project.
 
 Works on desktop Excel (Windows/Mac), Excel on the web, and tablets (iPad/Android).
 
