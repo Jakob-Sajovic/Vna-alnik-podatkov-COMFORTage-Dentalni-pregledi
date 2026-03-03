@@ -12,6 +12,17 @@ import { NotesTabController } from "../tabs/tab-notes";
 import { OhipTabController } from "../tabs/tab-ohip";
 import { SaveReportTabController } from "../tabs/tab-save-report";
 
+function showDebugError(msg: string) {
+  const el = document.createElement("div");
+  el.style.cssText = "position:fixed;top:0;left:0;right:0;padding:12px;background:red;color:white;font-size:14px;z-index:99999;white-space:pre-wrap;";
+  el.textContent = msg;
+  document.body.appendChild(el);
+}
+
+window.onerror = (msg, src, line, col, err) => {
+  showDebugError(`JS Error: ${msg}\nat ${src}:${line}:${col}\n${err?.stack || ""}`);
+};
+
 Office.onReady(() => {
   const tabBar = document.getElementById("tab-bar") as HTMLElement;
   const panelContainer = document.getElementById("panel-container") as HTMLElement;
