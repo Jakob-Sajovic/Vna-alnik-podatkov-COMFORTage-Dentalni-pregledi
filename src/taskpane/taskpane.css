@@ -447,32 +447,30 @@ h2 {
 }
 
 .chart-row {
-  display: flex;
-  justify-content: center;
-  gap: 2px;
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 1px;
 }
 
 .chart-number-row {
-  display: flex;
-  justify-content: center;
-  gap: 2px;
-  margin: 2px 0;
+  display: grid;
+  grid-template-columns: repeat(16, 1fr);
+  gap: 1px;
+  margin: 1px 0;
 }
 
 .tooth-number {
-  width: 32px;
   text-align: center;
   font-size: 9px;
   color: #605e5c;
-  flex-shrink: 0;
+  min-width: 0;
 }
 
 .tooth-cell {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
+  aspect-ratio: 1;
   cursor: pointer;
   position: relative;
+  min-width: 0;
 }
 
 .tooth-cell.missing {
@@ -539,11 +537,10 @@ h2 {
 }
 
 .icdas-tooth-cell {
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
+  aspect-ratio: 1;
   cursor: pointer;
   position: relative;
+  min-width: 0;
 }
 
 .icdas-tooth-cell.selected {
@@ -936,19 +933,12 @@ h2 {
     font-size: 12px;
   }
 
-  .tooth-cell {
-    width: 36px;
-    height: 36px;
-  }
-
   .tooth-number {
-    width: 36px;
     font-size: 10px;
   }
 
-  .icdas-tooth-cell {
-    width: 36px;
-    height: 36px;
+  .chart-row, .chart-number-row {
+    gap: 2px;
   }
 }
 
@@ -969,19 +959,8 @@ h2 {
     padding: 20px 24px;
   }
 
-  .tooth-cell {
-    width: 40px;
-    height: 40px;
-  }
-
   .tooth-number {
-    width: 40px;
     font-size: 11px;
-  }
-
-  .icdas-tooth-cell {
-    width: 40px;
-    height: 40px;
   }
 
   .ohip-radio-btn {

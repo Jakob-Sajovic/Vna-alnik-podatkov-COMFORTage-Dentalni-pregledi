@@ -1,6 +1,6 @@
 import { TabController } from "./tab-manager";
 import { SessionState } from "../model/session";
-import { FdiToothNumber, PBSurface, PBToothData, ICDASData } from "../model/types";
+import { FdiToothNumber, PBSurface, PBToothData, ICDASData, ExaminationSession } from "../model/types";
 import { ALL_TEETH } from "../model/constants";
 import { saveSessionToExcel } from "../excel/excel-io";
 import { generateReport } from "../report/report-generator";
@@ -129,6 +129,7 @@ export class SaveReportTabController implements TabController {
       ? `${examiner.firstName} ${examiner.lastName}`
       : "—";
 
+    const teethCount = this.calcTeethCount(s);
     const vpiScore = this.calcPBScore(s.plaque);
     const gbiScore = this.calcPBScore(s.bleeding);
     const icdasSummary = this.calcICDASSummary(s.icdas);
@@ -157,6 +158,14 @@ export class SaveReportTabController implements TabController {
           <span class="label">Preiskovanec:</span> ${this.escapeHtml(patientName)}<br>
           ${patient.code ? `<span class="label">Koda:</span> ${this.escapeHtml(patient.code)}<br>` : ""}
           <span class="label">Izvajalec:</span> ${this.escapeHtml(examinerName)}
+        </div>
+      </div>
+
+      <div class="summary-card">
+        <div class="summary-card-title">Zobje</div>
+        <div class="summary-card-content">
+          <span class="label">Prisotni:</span> ${teethCount.present} / 32<br>
+          <span class="label">Manjkajoči:</span> ${teethCount.missing}
         </div>
       </div>
 
@@ -252,6 +261,25 @@ export class SaveReportTabController implements TabController {
     }
 
     return { assessed, special, cariesSurfaces, restoredSurfaces };
+  }
+
+  private calcTeethCount(s: ExaminationSession): { present: number; missing: number } {
+    let missing = 0;
+    for (const tooth of ALL_TEETH) {
+      const isMissing =
+        // ICDAS: special case (except 96 = can't examine)
+        (s.icdas[tooth].status === "special" &&
+          s.icdas[tooth].specialCode !== null &&
+          s.icdas[tooth].specialCode !== "96") ||
+        // Plaque: tooth not present
+        !s.plaque[tooth].present ||
+        // Bleeding: tooth not present
+        !s.bleeding[tooth].present ||
+        // Probing: tooth not present
+        !s.probing[tooth].present;
+      if (isMissing) missing++;
+    }
+    return { present: 32 - missing, missing };
   }
 
   private escapeHtml(str: string): string {

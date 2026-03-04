@@ -30,7 +30,7 @@ function getColumnHeaders(): string[] {
   h.push("examiner_firstName", "examiner_lastName");
 
   // Computed scores
-  h.push("vpi_score_pct", "gbi_score_pct", "ohip_total");
+  h.push("vpi_score_pct", "gbi_score_pct", "ohip_total", "present_teeth_count");
 
   // Plaque per tooth
   for (const t of ALL_TEETH) {
@@ -87,7 +87,7 @@ function sessionToRow(s: ExaminationSession): (string | number | boolean | null)
   row.push(examiner.firstName, examiner.lastName);
 
   // Computed scores
-  row.push(calcPBPct(s.plaque), calcPBPct(s.bleeding), calcOhipTotal(s.ohip));
+  row.push(calcPBPct(s.plaque), calcPBPct(s.bleeding), calcOhipTotal(s.ohip), calcPresentTeeth(s));
 
   // Plaque
   for (const t of ALL_TEETH) {
@@ -151,6 +151,21 @@ function calcOhipTotal(ohip: (number | null)[]): number {
   let total = 0;
   for (const v of ohip) { if (v !== null) total += v; }
   return total;
+}
+
+function calcPresentTeeth(s: ExaminationSession): number {
+  let present = 0;
+  for (const t of ALL_TEETH) {
+    const isMissing =
+      (s.icdas[t].status === "special" &&
+        s.icdas[t].specialCode !== null &&
+        s.icdas[t].specialCode !== "96") ||
+      !s.plaque[t].present ||
+      !s.bleeding[t].present ||
+      !s.probing[t].present;
+    if (!isMissing) present++;
+  }
+  return present;
 }
 
 // ── Save ──────────────────────────────────────────────────────────

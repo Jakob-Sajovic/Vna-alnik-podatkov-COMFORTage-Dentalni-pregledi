@@ -12,18 +12,11 @@ import { NotesTabController } from "../tabs/tab-notes";
 import { OhipTabController } from "../tabs/tab-ohip";
 import { SaveReportTabController } from "../tabs/tab-save-report";
 
-function showDebugError(msg: string) {
-  const el = document.createElement("div");
-  el.style.cssText = "position:fixed;top:0;left:0;right:0;padding:12px;background:red;color:white;font-size:14px;z-index:99999;white-space:pre-wrap;";
-  el.textContent = msg;
-  document.body.appendChild(el);
-}
+let initialized = false;
 
-window.onerror = (msg, src, line, col, err) => {
-  showDebugError(`JS Error: ${msg}\nat ${src}:${line}:${col}\n${err?.stack || ""}`);
-};
-
-Office.onReady(() => {
+function initApp() {
+  if (initialized) return;
+  initialized = true;
   const tabBar = document.getElementById("tab-bar") as HTMLElement;
   const panelContainer = document.getElementById("panel-container") as HTMLElement;
 
@@ -54,4 +47,13 @@ Office.onReady(() => {
 
   // Start on Landing tab
   tabManager.switchTo("landing");
-});
+}
+
+Office.onReady(() => { initApp(); });
+
+// Fallback: if Office.onReady doesn't fire within 8 seconds, init anyway
+setTimeout(() => {
+  if (!initialized) {
+    initApp();
+  }
+}, 8000);
