@@ -41,6 +41,7 @@ export const CARIES_LABELS: Record<number, string> = {
 
 // ICDAS special case codes (Slovenian labels)
 export const SPECIAL_CASE_LABELS: Record<SpecialCaseCode, string> = {
+  "60": "popolna prevleka",
   "90": "zobni vsadek po izgubi zoba, ki ni povezana s kariesom",
   "91": "zobni vsadek po izgubi zoba zaradi kariesa",
   "92": "protetični člen po izgubi zoba, ki ni povezana s kariesom",
@@ -154,3 +155,22 @@ export const PROBING_DEPTH_COLORS = [
   { max: 5, color: "#ff9800" },   // orange — moderate
   { max: Infinity, color: "#f44336" }, // red — severe >= 6mm
 ];
+
+// Root caries — measured teeth and entry counts
+export const ROOT_CARIES_UPPER_TEETH: FdiToothNumber[] = [18, 17, 16, 26, 27, 28];
+export const ROOT_CARIES_LOWER_TEETH: FdiToothNumber[] = [38, 37, 36, 46, 47, 48];
+export const ROOT_CARIES_ALL_TEETH: FdiToothNumber[] = [...ROOT_CARIES_UPPER_TEETH, ...ROOT_CARIES_LOWER_TEETH];
+export const ROOT_CARIES_UPPER_ENTRIES = 3; // MB, P, DB roots
+export const ROOT_CARIES_LOWER_ENTRIES = 2; // M, D roots
+export const ROOT_CARIES_UPPER_LABELS = ["Bukalno", "Meziopalatinalno", "Distopalatinalno"];
+export const ROOT_CARIES_LOWER_LABELS = ["Bukalno", "Lingvalno"];
+export function rootCariesEntryCount(tooth: FdiToothNumber): number {
+  if (ROOT_CARIES_UPPER_TEETH.includes(tooth)) return ROOT_CARIES_UPPER_ENTRIES;
+  if (ROOT_CARIES_LOWER_TEETH.includes(tooth)) return ROOT_CARIES_LOWER_ENTRIES;
+  return 0;
+}
+export function rootCariesLabels(tooth: FdiToothNumber): string[] {
+  if (ROOT_CARIES_UPPER_TEETH.includes(tooth)) return ROOT_CARIES_UPPER_LABELS;
+  if (ROOT_CARIES_LOWER_TEETH.includes(tooth)) return ROOT_CARIES_LOWER_LABELS;
+  return [];
+}

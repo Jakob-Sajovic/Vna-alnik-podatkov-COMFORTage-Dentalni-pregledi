@@ -18,7 +18,7 @@ export type RestorationCode = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 export type CariesCode = 0 | 1 | 2 | 3 | 4 | 5 | 6;
 
 // Special case codes (whole-tooth)
-export type SpecialCaseCode = "90" | "91" | "92" | "93" | "96" | "97" | "98" | "99" | "06";
+export type SpecialCaseCode = "60" | "90" | "91" | "92" | "93" | "96" | "97" | "98" | "99" | "06";
 
 // Plaque/Bleeding: per-tooth data (4 surfaces, boolean toggle each)
 export interface PBToothData {
@@ -78,6 +78,11 @@ export interface ProbingToothData {
 
 export type ProbingData = Record<FdiToothNumber, ProbingToothData>;
 
+// Root caries (0 = healthy, 1 = initial, 2 = cavitated)
+export type RootCariesScore = 0 | 1 | 2;
+// Only measured teeth have entries; upper molars get 3, lower molars get 2
+export type RootCariesData = Partial<Record<FdiToothNumber, (RootCariesScore | null)[]>>;
+
 // Free-text notes
 export interface NotesData {
   diagnosticNotes: string;
@@ -102,6 +107,7 @@ export interface ExaminationSession {
   bleeding: BleedingData;
   icdas: ICDASData;
   probing: ProbingData;
+  rootCaries: RootCariesData;
   notes: NotesData;
   ohip: OhipData;
 }

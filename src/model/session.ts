@@ -9,11 +9,13 @@ import {
   PBToothData,
   ProbingData,
   ProbingToothData,
+  ProbingSite,
+  RootCariesData,
   PatientData,
   OhipData,
   NotesData,
 } from "./types";
-import { ALL_TEETH, SCHEMA_VERSION } from "./constants";
+import { ALL_TEETH, SCHEMA_VERSION, ROOT_CARIES_ALL_TEETH, PROBING_ALL_SITES, rootCariesEntryCount } from "./constants";
 
 type ChangeListener = () => void;
 
@@ -68,6 +70,19 @@ export function makeDefaultProbingData(): ProbingData {
   return createDefaultProbingData();
 }
 
+function createDefaultRootCariesData(): RootCariesData {
+  const data: RootCariesData = {};
+  for (const tooth of ROOT_CARIES_ALL_TEETH) {
+    const count = rootCariesEntryCount(tooth);
+    data[tooth] = new Array(count).fill(null);
+  }
+  return data;
+}
+
+export function makeDefaultRootCariesData(): RootCariesData {
+  return createDefaultRootCariesData();
+}
+
 function createDefaultICDASData(): ICDASData {
   const data: Partial<ICDASData> = {};
   for (const tooth of ALL_TEETH) {
@@ -89,6 +104,7 @@ function createBlankSession(): ExaminationSession {
     bleeding: createDefaultPBData(),
     icdas: createDefaultICDASData(),
     probing: createDefaultProbingData(),
+    rootCaries: createDefaultRootCariesData(),
     notes: { diagnosticNotes: "", qualitativeNotes: "" },
     ohip: new Array(49).fill(null) as OhipData,
   };
@@ -166,12 +182,58 @@ export class SessionState {
     return this.getSession().probing;
   }
 
+  getRootCaries(): RootCariesData {
+    return this.getSession().rootCaries;
+  }
+
   getNotes(): NotesData {
     return this.getSession().notes;
   }
 
   getOhip(): OhipData {
     return this.getSession().ohip;
+  }
+
+  // Sync tooth presence across all tabs (plaque, bleeding, icdas, probing)
+  setToothPresence(tooth: FdiToothNumber, present: boolean): void {
+    const s = this.getSession();
+
+    // Plaque
+    s.plaque[tooth].present = present;
+    if (!present) {
+      s.plaque[tooth].mesial = false;
+      s.plaque[tooth].distal = false;
+      s.plaque[tooth].buccal = false;
+      s.plaque[tooth].lingual = false;
+    }
+
+    // Bleeding
+    s.bleeding[tooth].present = present;
+    if (!present) {
+      s.bleeding[tooth].mesial = false;
+      s.bleeding[tooth].distal = false;
+      s.bleeding[tooth].buccal = false;
+      s.bleeding[tooth].lingual = false;
+    }
+
+    // Probing
+    s.probing[tooth].present = present;
+    if (!present) {
+      for (const site of PROBING_ALL_SITES) {
+        s.probing[tooth][site as ProbingSite] = null;
+      }
+      s.probing[tooth].furcation = null;
+    }
+
+    // ICDAS
+    if (!present) {
+      s.icdas[tooth].status = "special";
+    } else {
+      s.icdas[tooth].status = "normal";
+      s.icdas[tooth].specialCode = null;
+    }
+
+    this.touch();
   }
 
   // Mark session as modified

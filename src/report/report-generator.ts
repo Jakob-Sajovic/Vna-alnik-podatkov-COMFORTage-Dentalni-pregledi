@@ -24,6 +24,9 @@ import {
   PROBING_LINGUAL_SITES,
   PROBING_SITE_LABELS,
   PROBING_DEPTH_COLORS,
+  ROOT_CARIES_UPPER_TEETH,
+  ROOT_CARIES_LOWER_TEETH,
+  rootCariesLabels,
 } from "../model/constants";
 import {
   getSurfaceForPosition,
@@ -90,6 +93,7 @@ ${REPORT_CSS}
   ${buildPBSection("Indeks krvavitve dlesni — GBI", s.bleeding, "#ff6b6b")}
   ${buildICDASSection(s)}
   ${buildProbingSection(s)}
+  ${buildRootCariesSection(s)}
   ${buildNotesSection(s)}
   ${buildOhipSection(s)}
 
@@ -437,6 +441,52 @@ function buildProbingJawReport(
   return html;
 }
 
+// ── Root caries section ───────────────────────────────────────────
+
+function buildRootCariesSection(s: ExaminationSession): string {
+  const rc = s.rootCaries;
+  if (!rc) return "";
+
+  // Check if any data exists
+  let hasData = false;
+  for (const teeth of [ROOT_CARIES_UPPER_TEETH, ROOT_CARIES_LOWER_TEETH]) {
+    for (const t of teeth) {
+      const entries = rc[t];
+      if (entries && entries.some(v => v !== null)) { hasData = true; break; }
+    }
+    if (hasData) break;
+  }
+  if (!hasData) return "";
+
+  const buildTable = (teeth: FdiToothNumber[], jawLabel: string): string => {
+    const labels = rootCariesLabels(teeth[0]);
+    let html = `<h3 style="margin:8px 0 4px;">${jawLabel}</h3>`;
+    html += `<table class="pb-table"><thead><tr><th class="surface-label-cell">Zob</th>`;
+    for (const lbl of labels) html += `<th>${lbl}</th>`;
+    html += `</tr></thead><tbody>`;
+
+    for (const t of teeth) {
+      const entries = rc[t] || [];
+      html += `<tr><td class="surface-label-cell">${t}</td>`;
+      for (let i = 0; i < labels.length; i++) {
+        const v = entries[i];
+        html += `<td>${v !== null && v !== undefined ? v : "—"}</td>`;
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    return html;
+  };
+
+  return `
+  <section class="section">
+    <h2>Karioznost korenin</h2>
+    <p style="font-size:10px;color:#555;margin-bottom:8px;">0 = zdravo, 1 = začetna lezija, 2 = kavitirana lezija</p>
+    ${buildTable(ROOT_CARIES_UPPER_TEETH, "Zgornja čeljust")}
+    ${buildTable(ROOT_CARIES_LOWER_TEETH, "Spodnja čeljust")}
+  </section>`;
+}
+
 // ── Notes section ─────────────────────────────────────────────────
 
 function buildNotesSection(s: ExaminationSession): string {
@@ -688,7 +738,7 @@ function icdasToothSvgStr(
 // ── Report CSS ────────────────────────────────────────────────────
 
 const REPORT_CSS = `
-* { box-sizing: border-box; margin: 0; padding: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 body {
   font-family: "Segoe UI", -apple-system, sans-serif;
   font-size: 11px;

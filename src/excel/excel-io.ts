@@ -8,8 +8,8 @@ import {
   PBToothData,
   ProbingSite,
 } from "../model/types";
-import { ALL_TEETH, SCHEMA_VERSION, PROBING_ALL_SITES } from "../model/constants";
-import { makeDefaultProbingData } from "../model/session";
+import { ALL_TEETH, SCHEMA_VERSION, PROBING_ALL_SITES, ROOT_CARIES_ALL_TEETH, rootCariesEntryCount } from "../model/constants";
+import { makeDefaultProbingData, makeDefaultRootCariesData } from "../model/session";
 
 const SHEET_NAME = "DentalExam_Data";
 const PB_SURFACES: PBSurface[] = ["mesial", "distal", "buccal", "lingual"];
@@ -57,6 +57,12 @@ function getColumnHeaders(): string[] {
     h.push(`probing_${t}_present`);
     for (const s of PROBING_ALL_SITES) h.push(`probing_${t}_${s}`);
     h.push(`probing_${t}_furcation`);
+  }
+
+  // Root caries per measured tooth
+  for (const t of ROOT_CARIES_ALL_TEETH) {
+    const count = rootCariesEntryCount(t);
+    for (let i = 0; i < count; i++) h.push(`rootcaries_${t}_${i}`);
   }
 
   // Notes
@@ -119,6 +125,14 @@ function sessionToRow(s: ExaminationSession): (string | number | boolean | null)
     row.push(pt.present);
     for (const site of PROBING_ALL_SITES) row.push(pt[site]);
     row.push(pt.furcation);
+  }
+
+  // Root caries
+  const rc = s.rootCaries || {};
+  for (const t of ROOT_CARIES_ALL_TEETH) {
+    const count = rootCariesEntryCount(t);
+    const entries = rc[t] || new Array(count).fill(null);
+    for (let i = 0; i < count; i++) row.push(entries[i]);
   }
 
   // Notes
@@ -279,6 +293,9 @@ export async function loadSessionFromExcel(): Promise<ExaminationSession | null>
     if (result && !result.probing) {
       result.probing = makeDefaultProbingData();
     }
+    if (result && !result.rootCaries) {
+      result.rootCaries = makeDefaultRootCariesData();
+    }
   });
 
   return result;
@@ -347,6 +364,9 @@ export async function loadSessionFromFile(base64: string): Promise<ExaminationSe
     if (result && !result.probing) {
       result.probing = makeDefaultProbingData();
     }
+    if (result && !result.rootCaries) {
+      result.rootCaries = makeDefaultRootCariesData();
+    }
 
     // Clean up imported sheet
     importedSheet.delete();
@@ -399,6 +419,7 @@ function rowToSession(
     bleeding: {} as ExaminationSession["bleeding"],
     icdas: {} as ExaminationSession["icdas"],
     probing: makeDefaultProbingData(),
+    rootCaries: makeDefaultRootCariesData(),
     notes: {
       diagnosticNotes: str("notes_diagnostic"),
       qualitativeNotes: str("notes_qualitative"),
@@ -455,6 +476,17 @@ function rowToSession(
         mesioLingual: num(`probing_${t}_mesioLingual`),
         furcation: num(`probing_${t}_furcation`),
       };
+    }
+  }
+
+  // Root caries
+  for (const t of ROOT_CARIES_ALL_TEETH) {
+    const count = rootCariesEntryCount(t);
+    const hasCol = headers.indexOf(`rootcaries_${t}_0`) >= 0;
+    if (hasCol) {
+      const entries: (number | null)[] = [];
+      for (let i = 0; i < count; i++) entries.push(num(`rootcaries_${t}_${i}`));
+      session.rootCaries[t] = entries as ExaminationSession["rootCaries"][typeof t];
     }
   }
 
