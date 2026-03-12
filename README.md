@@ -10,8 +10,9 @@ Works on desktop Excel (Windows/Mac), Excel on the web, and tablets (iPad/Androi
 - **Plaque index (VPI)** — interactive dental chart with 4-surface toggle per tooth, auto-calculated percentage
 - **Bleeding index (GBI)** — same chart layout, separate data, auto-calculated percentage
 - **ICDAS assessment** — 5-surface cross-pattern chart, two dropdowns per surface (restoration + caries codes), special case codes for missing/unerupted teeth
-- **Probing depths** — 6-site measurements per tooth with color-coded area charts, furcation grading
+- **Probing depths** — 6-site measurements per tooth with color-coded area charts, furcation grading, root caries grading
 - **OHIP-49 questionnaire** — 49-item oral health quality of life survey, 7 domains, Likert 0–4, auto-scored
+- **FDI questionnaire** - 8 item standard FDI - questionnaire, auto filled fields from existing data, with manual control
 - **Notes** — free-text diagnostic and qualitative observations
 - **Excel persistence** — structured save/load to worksheet rows with JSON backup column
 - **PDF reports** — print-friendly HTML report with charts, tables, and signature fields
@@ -107,3 +108,4 @@ DentalExam/
 ## License
 
 MIT
+
