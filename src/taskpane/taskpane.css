@@ -43,8 +43,8 @@ html, body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-width: 48px;
-  padding: 8px 10px;
+  min-width: 40px;
+  padding: 6px 6px;
   border: none;
   background: transparent;
   color: #605e5c;
@@ -78,13 +78,13 @@ html, body {
 }
 
 .tab-icon {
-  font-size: 18px;
+  font-size: 14px;
   line-height: 1;
-  margin-bottom: 2px;
+  margin-bottom: 1px;
 }
 
 .tab-label {
-  font-size: 10px;
+  font-size: 9px;
   line-height: 1.2;
   white-space: nowrap;
 }
@@ -1057,6 +1057,80 @@ h2 {
   background: #f3f2f1;
 }
 
+/* ===== FDI Questionnaire ===== */
+.fdi-description {
+  font-size: 12px;
+  color: #605e5c;
+  margin: 0 0 16px 0;
+  line-height: 1.5;
+}
+
+.fdi-question {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #edebe9;
+}
+
+.fdi-question:last-child {
+  border-bottom: none;
+}
+
+.fdi-question-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #323130;
+  margin-bottom: 8px;
+}
+
+.fdi-auto-badge {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 600;
+  color: #0078d4;
+  background: #deecf9;
+  padding: 1px 6px;
+  border-radius: 8px;
+  vertical-align: middle;
+  margin-left: 4px;
+}
+
+.fdi-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.fdi-option-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid #c8c6c4;
+  border-radius: 4px;
+  background: #fff;
+  color: #323130;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+  flex: 1;
+  min-width: 0;
+  text-align: center;
+}
+
+.fdi-option-btn:hover:not(.selected) {
+  background: #f3f2f1;
+}
+
+.fdi-option-btn.selected {
+  background: #0078d4;
+  border-color: #0078d4;
+  color: #fff;
+}
+
 /* ===== Tab Help Footer ===== */
 .tab-help-footer {
   font-size: 12px;
@@ -1078,16 +1152,18 @@ h2 {
 @media (min-width: 500px) {
   .tab-btn {
     flex-direction: row;
-    gap: 6px;
-    padding: 10px 14px;
+    gap: 4px;
+    padding: 8px 10px;
+    min-width: 44px;
   }
 
   .tab-icon {
+    font-size: 16px;
     margin-bottom: 0;
   }
 
   .tab-label {
-    font-size: 12px;
+    font-size: 11px;
   }
 
   .tooth-number {

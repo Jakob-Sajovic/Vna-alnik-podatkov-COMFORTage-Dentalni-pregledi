@@ -6,6 +6,7 @@ import {
   ICDASSurface,
   ProbingSite,
   ProbingData,
+  FdiQuestionnaireData,
 } from "../model/types";
 import {
   UPPER_RIGHT,
@@ -24,6 +25,7 @@ import {
   PROBING_LINGUAL_SITES,
   PROBING_SITE_LABELS,
   PROBING_DEPTH_COLORS,
+  PROBING_ALL_SITES,
   ROOT_CARIES_UPPER_TEETH,
   ROOT_CARIES_LOWER_TEETH,
   rootCariesLabels,
@@ -96,6 +98,7 @@ ${REPORT_CSS}
   ${buildRootCariesSection(s)}
   ${buildNotesSection(s)}
   ${buildOhipSection(s)}
+  ${buildFdiSection(s)}
 
   ${buildSignatureSection(examinerName)}
   ${buildAdditionalNotesPage()}
@@ -544,6 +547,114 @@ function buildOhipSection(s: ExaminationSession): string {
       <tbody>
         ${domainRows}
       </tbody>
+    </table>
+  </section>`;
+}
+
+// ── FDI section ──────────────────────────────────────────────────
+
+function autoCalcFdi(s: ExaminationSession): FdiQuestionnaireData {
+  const fdi: FdiQuestionnaireData = s.fdiQuestionnaire
+    ? { ...s.fdiQuestionnaire }
+    : { gender: null, age: null, smoking: null, diabetes: null, toothLoss: null, plaque: null, bleeding: null, probingDepth: null, country: "" };
+
+  const pbSurfaces: PBSurface[] = ["mesial", "distal", "buccal", "lingual"];
+
+  // Q5 - Tooth loss
+  if (fdi.toothLoss === null) {
+    fdi.toothLoss = "no";
+    for (const t of ALL_TEETH) {
+      if (!s.plaque[t].present) { fdi.toothLoss = "yes"; break; }
+    }
+  }
+
+  // Q6 - Plaque
+  if (fdi.plaque === null) {
+    let total = 0, active = 0;
+    for (const t of ALL_TEETH) {
+      if (!s.plaque[t].present) continue;
+      for (const sf of pbSurfaces) { total++; if (s.plaque[t][sf]) active++; }
+    }
+    const pct = total > 0 ? (active / total) * 100 : 0;
+    fdi.plaque = pct < 10 ? "lt10" : pct <= 50 ? "10to50" : "gt50";
+  }
+
+  // Q7 - Bleeding
+  if (fdi.bleeding === null) {
+    let total = 0, active = 0;
+    for (const t of ALL_TEETH) {
+      if (!s.bleeding[t].present) continue;
+      for (const sf of pbSurfaces) { total++; if (s.bleeding[t][sf]) active++; }
+    }
+    const pct = total > 0 ? (active / total) * 100 : 0;
+    fdi.bleeding = pct < 10 ? "lt10" : pct <= 50 ? "10to50" : "gt50";
+  }
+
+  // Q8 - Probing depth
+  if (fdi.probingDepth === null && s.probing) {
+    let maxDepth = 0, teethGt5 = 0, presentTeeth = 0;
+    for (const t of ALL_TEETH) {
+      const td = s.probing[t];
+      if (!td.present) continue;
+      presentTeeth++;
+      let hasGt5 = false;
+      for (const site of PROBING_ALL_SITES) {
+        const v = td[site as ProbingSite];
+        if (v !== null && v > maxDepth) maxDepth = v;
+        if (v !== null && v > 5) hasGt5 = true;
+      }
+      if (hasGt5) teethGt5++;
+    }
+    if (maxDepth < 4) fdi.probingDepth = "lt4";
+    else if (maxDepth <= 5) fdi.probingDepth = "4to5";
+    else {
+      const pctGt5 = presentTeeth > 0 ? (teethGt5 / presentTeeth) * 100 : 0;
+      fdi.probingDepth = pctGt5 < 30 ? "localized_gt5" : "generalized_gt5";
+    }
+  }
+
+  return fdi;
+}
+
+function buildFdiSection(s: ExaminationSession): string {
+  const fdi = autoCalcFdi(s);
+
+  const labels: Record<string, Record<string, string>> = {
+    gender: { male: "Moški", female: "Ženski", rather_not_say: "Ne želim odgovoriti" },
+    age: { lt35: "< 35 let", "35to44": "35–44 let", "45to64": "45–64 let", gt64: "> 64 let" },
+    smoking: { no: "Ne", lt10: "< 10 cigaret/dan", "10to15": "10–15 cigaret/dan", gt15: "> 15 cigaret/dan" },
+    diabetes: { no: "Ne", well_controlled: "Urejen (HbA1c < 7%)", poorly_controlled: "Neurejen (HbA1c ≥ 7%)" },
+    toothLoss: { no: "Brez izgube zob", yes: "Izguba zob zaradi parodontitisa" },
+    plaque: { lt10: "< 10% površin", "10to50": "10–50% površin", gt50: "> 50% površin" },
+    bleeding: { lt10: "< 10% površin", "10to50": "10–50% površin", gt50: "> 50% površin" },
+    probingDepth: { lt4: "< 4 mm", "4to5": "4–5 mm", localized_gt5: "Lokalizirana mesta > 5 mm", generalized_gt5: "Generalizirana mesta > 5 mm" },
+  };
+
+  const questions: { key: string; label: string }[] = [
+    { key: "gender", label: "Spol" },
+    { key: "age", label: "Starost" },
+    { key: "smoking", label: "Kajenje" },
+    { key: "diabetes", label: "Diabetes" },
+    { key: "toothLoss", label: "Izguba zob" },
+    { key: "plaque", label: "Obsežne obloge" },
+    { key: "bleeding", label: "Krvavitev ob sondiranju" },
+    { key: "probingDepth", label: "Globina sondiranja" },
+  ];
+
+  let rows = "";
+  for (const q of questions) {
+    const val = fdi[q.key as keyof FdiQuestionnaireData] as string | null;
+    const display = val ? (labels[q.key][val] || val) : "—";
+    rows += `<tr><td class="surface-label-cell">${q.label}</td><td>${esc(display)}</td></tr>`;
+  }
+
+  return `
+  <section class="section">
+    <h2>FDI vprašalnik — profil parodontalne bolezni</h2>
+    ${fdi.country ? `<p style="font-size:10px;color:#555;margin-bottom:8px;">Država: ${esc(fdi.country)}</p>` : ""}
+    <table class="pb-table">
+      <thead><tr><th class="surface-label-cell">Vprašanje</th><th>Odgovor</th></tr></thead>
+      <tbody>${rows}</tbody>
     </table>
   </section>`;
 }

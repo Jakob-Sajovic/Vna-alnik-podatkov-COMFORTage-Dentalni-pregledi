@@ -94,6 +94,7 @@ export const TABS: TabDefinition[] = [
   { id: "probing", label: "Globine", icon: "📏" },
   { id: "notes", label: "Opombe", icon: "📝" },
   { id: "ohip", label: "OHIP", icon: "📋" },
+  { id: "fdi", label: "FDI", icon: "📊" },
   { id: "save-report", label: "Shrani", icon: "💾" },
 ];
 

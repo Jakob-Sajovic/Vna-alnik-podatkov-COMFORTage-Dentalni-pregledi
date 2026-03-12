@@ -2,6 +2,7 @@ import {
   ExaminationSession,
   ExaminerData,
   FdiToothNumber,
+  FdiQuestionnaireData,
   PlaqueData,
   BleedingData,
   ICDASData,
@@ -91,6 +92,18 @@ function createDefaultICDASData(): ICDASData {
   return data as ICDASData;
 }
 
+function createDefaultFdiQuestionnaire(): FdiQuestionnaireData {
+  return {
+    gender: null, age: null, smoking: null, diabetes: null,
+    toothLoss: null, plaque: null, bleeding: null, probingDepth: null,
+    country: "",
+  };
+}
+
+export function makeDefaultFdiQuestionnaire(): FdiQuestionnaireData {
+  return createDefaultFdiQuestionnaire();
+}
+
 function createBlankSession(): ExaminationSession {
   const now = new Date().toISOString();
   return {
@@ -107,6 +120,7 @@ function createBlankSession(): ExaminationSession {
     rootCaries: createDefaultRootCariesData(),
     notes: { diagnosticNotes: "", qualitativeNotes: "" },
     ohip: new Array(49).fill(null) as OhipData,
+    fdiQuestionnaire: createDefaultFdiQuestionnaire(),
   };
 }
 
@@ -192,6 +206,10 @@ export class SessionState {
 
   getOhip(): OhipData {
     return this.getSession().ohip;
+  }
+
+  getFdiQuestionnaire(): FdiQuestionnaireData {
+    return this.getSession().fdiQuestionnaire;
   }
 
   // Sync tooth presence across all tabs (plaque, bleeding, icdas, probing)

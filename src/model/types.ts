@@ -95,6 +95,19 @@ export interface ExaminerData {
   lastName: string;
 }
 
+// FDI Periodontal Disease Profile questionnaire
+export interface FdiQuestionnaireData {
+  gender: "male" | "female" | "rather_not_say" | null;
+  age: "lt35" | "35to44" | "45to64" | "gt64" | null;
+  smoking: "no" | "lt10" | "10to15" | "gt15" | null;
+  diabetes: "no" | "well_controlled" | "poorly_controlled" | null;
+  toothLoss: "no" | "yes" | null;
+  plaque: "lt10" | "10to50" | "gt50" | null;
+  bleeding: "lt10" | "10to50" | "gt50" | null;
+  probingDepth: "lt4" | "4to5" | "localized_gt5" | "generalized_gt5" | null;
+  country: string;
+}
+
 // Complete examination session
 export interface ExaminationSession {
   sessionId: string;
@@ -110,4 +123,5 @@ export interface ExaminationSession {
   rootCaries: RootCariesData;
   notes: NotesData;
   ohip: OhipData;
+  fdiQuestionnaire: FdiQuestionnaireData;
 }

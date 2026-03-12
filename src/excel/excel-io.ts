@@ -9,7 +9,7 @@ import {
   ProbingSite,
 } from "../model/types";
 import { ALL_TEETH, SCHEMA_VERSION, PROBING_ALL_SITES, ROOT_CARIES_ALL_TEETH, rootCariesEntryCount } from "../model/constants";
-import { makeDefaultProbingData, makeDefaultRootCariesData } from "../model/session";
+import { makeDefaultProbingData, makeDefaultRootCariesData, makeDefaultFdiQuestionnaire } from "../model/session";
 
 const SHEET_NAME = "DentalExam_Data";
 const PB_SURFACES: PBSurface[] = ["mesial", "distal", "buccal", "lingual"];
@@ -70,6 +70,10 @@ function getColumnHeaders(): string[] {
 
   // OHIP 1–49
   for (let i = 1; i <= 49; i++) h.push(`ohip_${i}`);
+
+  // FDI questionnaire
+  h.push("fdi_gender", "fdi_age", "fdi_smoking", "fdi_diabetes",
+    "fdi_toothLoss", "fdi_plaque", "fdi_bleeding", "fdi_probingDepth", "fdi_country");
 
   // Full JSON backup for reliable reload
   h.push("_json");
@@ -140,6 +144,11 @@ function sessionToRow(s: ExaminationSession): (string | number | boolean | null)
 
   // OHIP
   for (let i = 0; i < 49; i++) row.push(s.ohip[i]);
+
+  // FDI questionnaire
+  const fdi = s.fdiQuestionnaire || { gender: null, age: null, smoking: null, diabetes: null, toothLoss: null, plaque: null, bleeding: null, probingDepth: null, country: "" };
+  row.push(fdi.gender, fdi.age, fdi.smoking, fdi.diabetes,
+    fdi.toothLoss, fdi.plaque, fdi.bleeding, fdi.probingDepth, fdi.country);
 
   // JSON backup
   row.push(JSON.stringify(s));
@@ -289,12 +298,15 @@ export async function loadSessionFromExcel(): Promise<ExaminationSession | null>
       result = rowToSession(headers, values);
     }
 
-    // Backward compat: ensure probing field exists for old files
+    // Backward compat: ensure fields exist for old files
     if (result && !result.probing) {
       result.probing = makeDefaultProbingData();
     }
     if (result && !result.rootCaries) {
       result.rootCaries = makeDefaultRootCariesData();
+    }
+    if (result && !result.fdiQuestionnaire) {
+      result.fdiQuestionnaire = makeDefaultFdiQuestionnaire();
     }
   });
 
@@ -360,12 +372,15 @@ export async function loadSessionFromFile(base64: string): Promise<ExaminationSe
       result = rowToSession(headers, values);
     }
 
-    // Backward compat: ensure probing field exists for old files
+    // Backward compat: ensure fields exist for old files
     if (result && !result.probing) {
       result.probing = makeDefaultProbingData();
     }
     if (result && !result.rootCaries) {
       result.rootCaries = makeDefaultRootCariesData();
+    }
+    if (result && !result.fdiQuestionnaire) {
+      result.fdiQuestionnaire = makeDefaultFdiQuestionnaire();
     }
 
     // Clean up imported sheet
@@ -494,6 +509,19 @@ function rowToSession(
   for (let i = 1; i <= 49; i++) {
     session.ohip.push(num(`ohip_${i}`) as ExaminationSession["ohip"][number]);
   }
+
+  // FDI questionnaire
+  session.fdiQuestionnaire = {
+    gender: (str("fdi_gender") || null) as ExaminationSession["fdiQuestionnaire"]["gender"],
+    age: (str("fdi_age") || null) as ExaminationSession["fdiQuestionnaire"]["age"],
+    smoking: (str("fdi_smoking") || null) as ExaminationSession["fdiQuestionnaire"]["smoking"],
+    diabetes: (str("fdi_diabetes") || null) as ExaminationSession["fdiQuestionnaire"]["diabetes"],
+    toothLoss: (str("fdi_toothLoss") || null) as ExaminationSession["fdiQuestionnaire"]["toothLoss"],
+    plaque: (str("fdi_plaque") || null) as ExaminationSession["fdiQuestionnaire"]["plaque"],
+    bleeding: (str("fdi_bleeding") || null) as ExaminationSession["fdiQuestionnaire"]["bleeding"],
+    probingDepth: (str("fdi_probingDepth") || null) as ExaminationSession["fdiQuestionnaire"]["probingDepth"],
+    country: str("fdi_country"),
+  };
 
   return session;
 }

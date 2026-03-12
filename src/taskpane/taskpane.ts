@@ -10,6 +10,7 @@ import { ICDASTabController } from "../tabs/tab-icdas";
 import { ProbingTabController } from "../tabs/tab-probing";
 import { NotesTabController } from "../tabs/tab-notes";
 import { OhipTabController } from "../tabs/tab-ohip";
+import { FdiTabController } from "../tabs/tab-fdi";
 import { SaveReportTabController } from "../tabs/tab-save-report";
 
 let initialized = false;
@@ -33,6 +34,7 @@ function initApp() {
   const probingCtrl = new ProbingTabController(session);
   const notesCtrl = new NotesTabController(session);
   const ohipCtrl = new OhipTabController(session);
+  const fdiCtrl = new FdiTabController(session);
   const saveReportCtrl = new SaveReportTabController(session);
 
   // Register controllers — each receives its panel via init()
@@ -43,6 +45,7 @@ function initApp() {
   tabManager.registerController("probing", probingCtrl);
   tabManager.registerController("notes", notesCtrl);
   tabManager.registerController("ohip", ohipCtrl);
+  tabManager.registerController("fdi", fdiCtrl);
   tabManager.registerController("save-report", saveReportCtrl);
 
   // Start on Landing tab

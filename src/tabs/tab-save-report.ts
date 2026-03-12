@@ -207,6 +207,8 @@ export class SaveReportTabController implements TabController {
           Skupaj: ${ohipTotal} / 196 (${ohipAnswered}/49 odgovorov)
         </div>
       </div>
+
+      ${this.buildFdiSummaryCard(s)}
     `;
   }
 
@@ -280,6 +282,51 @@ export class SaveReportTabController implements TabController {
       if (isMissing) missing++;
     }
     return { present: 32 - missing, missing };
+  }
+
+  private buildFdiSummaryCard(s: ExaminationSession): string {
+    const fdi = s.fdiQuestionnaire;
+    if (!fdi) return "";
+
+    const labels: Record<string, Record<string, string>> = {
+      gender: { male: "Moški", female: "Ženski", rather_not_say: "Ne želim odgovoriti" },
+      age: { lt35: "< 35", "35to44": "35–44", "45to64": "45–64", gt64: "> 64" },
+      smoking: { no: "Ne", lt10: "< 10/dan", "10to15": "10–15/dan", gt15: "> 15/dan" },
+      diabetes: { no: "Ne", well_controlled: "Urejen", poorly_controlled: "Neurejen" },
+      toothLoss: { no: "Ne", yes: "Da" },
+      plaque: { lt10: "< 10%", "10to50": "10–50%", gt50: "> 50%" },
+      bleeding: { lt10: "< 10%", "10to50": "10–50%", gt50: "> 50%" },
+      probingDepth: { lt4: "< 4 mm", "4to5": "4–5 mm", localized_gt5: "Lokalizirano > 5 mm", generalized_gt5: "Generalizirano > 5 mm" },
+    };
+
+    const items: { label: string; key: string }[] = [
+      { label: "Spol", key: "gender" },
+      { label: "Starost", key: "age" },
+      { label: "Kajenje", key: "smoking" },
+      { label: "Diabetes", key: "diabetes" },
+      { label: "Izguba zob", key: "toothLoss" },
+      { label: "Obloge", key: "plaque" },
+      { label: "Krvavitev", key: "bleeding" },
+      { label: "Glob. sondiranja", key: "probingDepth" },
+    ];
+
+    let answered = 0;
+    let content = "";
+    for (const item of items) {
+      const val = fdi[item.key as keyof typeof fdi] as string | null;
+      if (val) answered++;
+      const display = val ? (labels[item.key]?.[val] || val) : "—";
+      content += `<span class="label">${item.label}:</span> ${this.escapeHtml(display)}<br>`;
+    }
+
+    return `
+      <div class="summary-card">
+        <div class="summary-card-title">FDI vprašalnik</div>
+        <div class="summary-card-content">
+          ${content}
+          <span class="label">Odgovorjeno:</span> ${answered}/8
+        </div>
+      </div>`;
   }
 
   private escapeHtml(str: string): string {
