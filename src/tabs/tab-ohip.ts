@@ -18,6 +18,9 @@ export class OhipTabController implements TabController {
     panel.innerHTML = `
       <div class="tab-content-inner">
         <h2>OHIP-49</h2>
+        <div class="tab-toolbar">
+          <button class="btn btn-danger-outline btn-sm" id="ohip-reset-btn">Ponastavi OHIP</button>
+        </div>
         <div class="ohip-score-bar" id="ohip-score-bar">Skupaj: 0 / 196</div>
         <div id="ohip-domains"></div>
         <p class="tab-help-footer">
@@ -81,6 +84,33 @@ export class OhipTabController implements TabController {
       }
 
       container.appendChild(domainEl);
+    }
+
+    // Reset button with two-click confirmation
+    const resetBtn = panel.querySelector("#ohip-reset-btn") as HTMLButtonElement;
+    if (resetBtn) {
+      let armed = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      resetBtn.addEventListener("click", () => {
+        if (!armed) {
+          armed = true;
+          resetBtn.textContent = "Ste prepričani?";
+          resetBtn.classList.add("btn-danger-armed");
+          timer = setTimeout(() => { armed = false; resetBtn.textContent = "Ponastavi OHIP"; resetBtn.classList.remove("btn-danger-armed"); }, 3000);
+        } else {
+          if (timer) clearTimeout(timer);
+          armed = false;
+          resetBtn.textContent = "Ponastavi OHIP";
+          resetBtn.classList.remove("btn-danger-armed");
+          if (!this.session.hasSession()) return;
+          const ohip = this.session.getOhip();
+          for (let i = 0; i < 49; i++) ohip[i] = null;
+          this.session.touch();
+          const buttons = this.panel?.querySelectorAll(".ohip-radio-btn") as NodeListOf<HTMLElement>;
+          buttons.forEach((btn) => btn.classList.remove("selected"));
+          this.updateScores();
+        }
+      });
     }
 
     // Event delegation: single listener for all radio buttons

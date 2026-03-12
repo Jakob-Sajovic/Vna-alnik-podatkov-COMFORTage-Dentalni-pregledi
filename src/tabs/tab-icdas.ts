@@ -12,6 +12,7 @@ import {
   UPPER_LEFT,
   LOWER_LEFT,
   LOWER_RIGHT,
+  ALL_TEETH,
   RESTORATION_LABELS,
   CARIES_LABELS,
   SPECIAL_CASE_LABELS,
@@ -40,9 +41,13 @@ export class ICDASTabController implements TabController {
 
   init(panel: HTMLElement): void {
     this.panel = panel;
+
     panel.innerHTML = `
       <div class="tab-content-inner">
         <h2>ICDAS ocena</h2>
+        <div class="tab-toolbar">
+          <button class="btn btn-danger-outline btn-sm" id="icdas-reset-btn">Ponastavi ICDAS</button>
+        </div>
         <p class="icdas-help-text">
           Kliknite na zob za vnos kod restavracij in kariesa.
           Vsak zob ima 5 površin (M, D, V, O, Ok) z dvema kodama.
@@ -62,6 +67,27 @@ export class ICDASTabController implements TabController {
 
     // Event delegation for tooth clicks
     this.chartContainer.addEventListener("click", (e) => this.handleChartClick(e));
+
+    // Reset button with two-click confirmation
+    const resetBtn = panel.querySelector("#icdas-reset-btn") as HTMLButtonElement;
+    if (resetBtn) {
+      let armed = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      resetBtn.addEventListener("click", () => {
+        if (!armed) {
+          armed = true;
+          resetBtn.textContent = "Ste prepričani?";
+          resetBtn.classList.add("btn-danger-armed");
+          timer = setTimeout(() => { armed = false; resetBtn.textContent = "Ponastavi ICDAS"; resetBtn.classList.remove("btn-danger-armed"); }, 3000);
+        } else {
+          if (timer) clearTimeout(timer);
+          armed = false;
+          resetBtn.textContent = "Ponastavi ICDAS";
+          resetBtn.classList.remove("btn-danger-armed");
+          this.handleReset();
+        }
+      });
+    }
   }
 
   onActivate(): void {
@@ -221,6 +247,33 @@ export class ICDASTabController implements TabController {
         </div>
       `;
     } else {
+      // Bulk set controls for this tooth
+      const restBulkOptions = Object.entries(RESTORATION_LABELS)
+        .map(([code, desc]) => `<option value="${code}" title="${desc}">${code}</option>`)
+        .join("");
+      const cariesBulkOptions = Object.entries(CARIES_LABELS)
+        .map(([code, desc]) => `<option value="${code}" title="${desc}">${code}</option>`)
+        .join("");
+
+      const bulkSetHtml = `
+        <div class="bulk-set-section" style="margin-bottom:8px;">
+          <div class="bulk-set-row">
+            <select class="bulk-set-select" id="icdas-tooth-bulk-rest">
+              <option value="">— Zobna površina —</option>
+              ${restBulkOptions}
+            </select>
+            <button class="btn btn-secondary btn-sm" id="icdas-tooth-bulk-rest-btn">Vsem</button>
+          </div>
+          <div class="bulk-set-row">
+            <select class="bulk-set-select" id="icdas-tooth-bulk-caries">
+              <option value="">— Kariozne spr. —</option>
+              ${cariesBulkOptions}
+            </select>
+            <button class="btn btn-secondary btn-sm" id="icdas-tooth-bulk-caries-btn">Vsem</button>
+          </div>
+        </div>
+      `;
+
       // Normal mode: 5 surface items, each with full name + two dropdowns
       const rows = ICDAS_SURFACES.map((surface) => {
         const surfData = toothData.surfaces[surface];
@@ -263,6 +316,7 @@ export class ICDASTabController implements TabController {
       }).join("");
 
       surfacesHtml = `
+        ${bulkSetHtml}
         <div class="icdas-surfaces-grid">
           ${rows}
         </div>
@@ -302,10 +356,66 @@ export class ICDASTabController implements TabController {
           this.handleSurfaceCodeChange(tooth, surface, codeType, sel.value);
         });
       });
+
+      // Per-tooth bulk set buttons
+      this.detailPanel.querySelector("#icdas-tooth-bulk-rest-btn")?.addEventListener("click", () =>
+        this.handleToothBulkSet(tooth, "restoration")
+      );
+      this.detailPanel.querySelector("#icdas-tooth-bulk-caries-btn")?.addEventListener("click", () =>
+        this.handleToothBulkSet(tooth, "caries")
+      );
     }
 
     // Scroll detail panel into view
     this.detailPanel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // ── Reset & bulk set ───────────────────────────────────────────
+
+  private handleReset(): void {
+    if (!this.session.hasSession()) return;
+
+    const icdas = this.session.getIcdas();
+    for (const t of ALL_TEETH) {
+      icdas[t] = {
+        status: "normal",
+        specialCode: null,
+        surfaces: {
+          mesial: { restoration: null, caries: null },
+          distal: { restoration: null, caries: null },
+          buccal: { restoration: null, caries: null },
+          lingual: { restoration: null, caries: null },
+          occlusal: { restoration: null, caries: null },
+        },
+      };
+    }
+    this.session.touch();
+    this.closeDetail();
+    this.refreshAllTeeth();
+  }
+
+  private handleToothBulkSet(tooth: FdiToothNumber, codeType: "restoration" | "caries"): void {
+    if (!this.session.hasSession()) return;
+
+    const selectId = codeType === "restoration" ? "#icdas-tooth-bulk-rest" : "#icdas-tooth-bulk-caries";
+    const selectEl = this.detailPanel?.querySelector(selectId) as HTMLSelectElement | null;
+    if (!selectEl || selectEl.value === "") return;
+
+    const value = parseInt(selectEl.value, 10);
+    const td = this.session.getIcdas()[tooth];
+    if (td.status === "special") return;
+
+    for (const surface of ICDAS_SURFACES) {
+      if (codeType === "restoration") {
+        td.surfaces[surface].restoration = value as RestorationCode;
+      } else {
+        td.surfaces[surface].caries = value as CariesCode;
+      }
+    }
+
+    this.session.touch();
+    this.refreshToothVisual(tooth);
+    this.showDetailForTooth(tooth);
   }
 
   // ── Data handlers ───────────────────────────────────────────────
@@ -313,17 +423,9 @@ export class ICDASTabController implements TabController {
   private handleModeToggle(tooth: FdiToothNumber, mode: "normal" | "special"): void {
     if (!this.session.hasSession()) return;
 
-    const icdasData = this.session.getIcdas();
-    const toothData = icdasData[tooth];
+    // Use centralized presence sync
+    this.session.setToothPresence(tooth, mode === "normal");
 
-    toothData.status = mode;
-
-    // Clear special code when switching back to normal
-    if (mode === "normal") {
-      toothData.specialCode = null;
-    }
-
-    this.session.touch();
     this.refreshToothVisual(tooth);
     this.showDetailForTooth(tooth);
   }
@@ -350,6 +452,22 @@ export class ICDASTabController implements TabController {
 
   private handleSpecialCodeChange(tooth: FdiToothNumber, value: string): void {
     if (!this.session.hasSession()) return;
+
+    // Code "60" (Popolna prevleka): auto-fill surfaces and switch back to normal
+    if (value === "60") {
+      const td = this.session.getIcdas()[tooth];
+      td.status = "normal";
+      td.specialCode = null;
+      for (const surface of ICDAS_SURFACES) {
+        td.surfaces[surface].restoration = 6 as RestorationCode;
+        td.surfaces[surface].caries = 0 as CariesCode;
+      }
+      // Mark tooth as present in all tabs
+      this.session.setToothPresence(tooth, true);
+      this.refreshToothVisual(tooth);
+      this.showDetailForTooth(tooth);
+      return;
+    }
 
     this.session.getIcdas()[tooth].specialCode = value === "" ? null : (value as SpecialCaseCode);
     this.session.touch();

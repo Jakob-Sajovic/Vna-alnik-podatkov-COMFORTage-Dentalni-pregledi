@@ -1,6 +1,6 @@
 import { TabController } from "./tab-manager";
-import { SessionState } from "../model/session";
-import { FdiToothNumber, ProbingSite, ProbingData } from "../model/types";
+import { SessionState, makeDefaultProbingData, makeDefaultRootCariesData } from "../model/session";
+import { FdiToothNumber, ProbingSite, ProbingData, RootCariesScore } from "../model/types";
 import {
   UPPER_RIGHT,
   UPPER_LEFT,
@@ -11,6 +11,10 @@ import {
   PROBING_SITE_LABELS,
   PROBING_DEPTH_COLORS,
   FURCATION_GRADES,
+  ROOT_CARIES_UPPER_TEETH,
+  ROOT_CARIES_LOWER_TEETH,
+  rootCariesEntryCount,
+  rootCariesLabels,
 } from "../model/constants";
 import { buildToothOutlinesSvg, TOOTH_CENTER_PCT, SITE_SPREAD } from "../dental/tooth-outlines";
 
@@ -27,6 +31,7 @@ export class ProbingTabController implements TabController {
   private selectedTooth: FdiToothNumber | null = null;
   private detailContainer: HTMLElement | null = null;
   private chartContainers: Map<string, HTMLElement> = new Map();
+  private rootCariesContainer: HTMLElement | null = null;
 
   constructor(session: SessionState) {
     this.session = session;
@@ -37,12 +42,22 @@ export class ProbingTabController implements TabController {
     panel.innerHTML = `
       <div class="tab-content-inner">
         <h2>Globine sondiranja</h2>
+        <div class="tab-toolbar">
+          <button class="btn btn-danger-outline btn-sm" id="probing-reset-btn">Ponastavi globine</button>
+        </div>
         <p class="icdas-help-text">
           Kliknite na zob za vnos globin sondiranja (6 mest na zob).
           Barvne vrednosti: zelena &#8804;3, rumena 4, oranžna 5, rdeča &#8805;6 mm.
         </p>
         <div id="probing-chart"></div>
         <div id="probing-detail"></div>
+        <div id="root-caries-section">
+          <h2 style="margin-top:24px;">Karioznost korenin</h2>
+          <p class="icdas-help-text">
+            Ocena karioznosti korenin na izbranih zobeh (0 = zdravo, 1 = začetna lezija, 2 = kavitirana lezija).
+          </p>
+          <div id="root-caries-content"></div>
+        </div>
         <p class="tab-help-footer">
           Za vsak zob vnesite globine sondiranja v milimetrih.
           Graf se posodobi sproti.
@@ -52,8 +67,31 @@ export class ProbingTabController implements TabController {
 
     const chartContainer = panel.querySelector("#probing-chart") as HTMLElement;
     this.detailContainer = panel.querySelector("#probing-detail") as HTMLElement;
+    this.rootCariesContainer = panel.querySelector("#root-caries-content") as HTMLElement;
 
     this.buildChart(chartContainer);
+    this.buildRootCariesUI();
+
+    // Reset button with two-click confirmation
+    const resetBtn = panel.querySelector("#probing-reset-btn") as HTMLButtonElement;
+    if (resetBtn) {
+      let armed = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      resetBtn.addEventListener("click", () => {
+        if (!armed) {
+          armed = true;
+          resetBtn.textContent = "Ste prepričani?";
+          resetBtn.classList.add("btn-danger-armed");
+          timer = setTimeout(() => { armed = false; resetBtn.textContent = "Ponastavi globine"; resetBtn.classList.remove("btn-danger-armed"); }, 3000);
+        } else {
+          if (timer) clearTimeout(timer);
+          armed = false;
+          resetBtn.textContent = "Ponastavi globine";
+          resetBtn.classList.remove("btn-danger-armed");
+          this.handleReset();
+        }
+      });
+    }
   }
 
   onActivate(): void {
@@ -62,6 +100,7 @@ export class ProbingTabController implements TabController {
     if (this.selectedTooth !== null) {
       this.showDetail(this.selectedTooth);
     }
+    this.refreshRootCariesUI();
   }
 
   onDeactivate(): void {
@@ -382,18 +421,106 @@ export class ProbingTabController implements TabController {
     // Missing toggle button
     const missingBtn = this.detailContainer.querySelector(".probing-missing-btn") as HTMLButtonElement;
     missingBtn?.addEventListener("click", () => {
-      td.present = !td.present;
-      if (!td.present) {
-        for (const site of [...PROBING_BUCCAL_SITES, ...PROBING_LINGUAL_SITES]) {
-          td[site] = null;
-        }
-        td.furcation = null;
-      }
-      this.session.touch();
+      this.session.setToothPresence(tooth, !td.present);
       this.refreshAllCharts();
       this.showDetail(tooth);
     });
 
     this.detailContainer.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  // ── Reset ───────────────────────────────────────────────────────
+
+  private handleReset(): void {
+    if (!this.session.hasSession()) return;
+
+    const session = this.session.getSession();
+    session.probing = makeDefaultProbingData();
+    session.rootCaries = makeDefaultRootCariesData();
+    this.session.touch();
+    this.closeDetail();
+    this.refreshAllCharts();
+    this.refreshRootCariesUI();
+  }
+
+  // ── Root caries UI ──────────────────────────────────────────────
+
+  private buildRootCariesUI(): void {
+    if (!this.rootCariesContainer) return;
+
+    const buildJawTable = (teeth: FdiToothNumber[], label: string): string => {
+      const entryCount = rootCariesEntryCount(teeth[0]);
+      const labels = rootCariesLabels(teeth[0]);
+
+      let html = `<div class="root-caries-jaw">`;
+      html += `<div class="root-caries-jaw-label">${label}</div>`;
+      html += `<table class="root-caries-table"><thead><tr><th>Zob</th>`;
+      for (const lbl of labels) {
+        html += `<th>${lbl}</th>`;
+      }
+      html += `</tr></thead><tbody>`;
+
+      for (const tooth of teeth) {
+        html += `<tr><td class="root-caries-tooth-num">${tooth}</td>`;
+        for (let i = 0; i < entryCount; i++) {
+          html += `<td><div class="rc-radio-group" data-tooth="${tooth}" data-entry="${i}">`;
+          for (let v = 0; v <= 2; v++) {
+            html += `<button type="button" class="rc-radio-btn" data-value="${v}">${v}</button>`;
+          }
+          html += `</div></td>`;
+        }
+        html += `</tr>`;
+      }
+
+      html += `</tbody></table></div>`;
+      return html;
+    };
+
+    this.rootCariesContainer.innerHTML =
+      buildJawTable(ROOT_CARIES_UPPER_TEETH, "Zgornja čeljust") +
+      buildJawTable(ROOT_CARIES_LOWER_TEETH, "Spodnja čeljust");
+
+    // Event delegation for radio buttons
+    this.rootCariesContainer.addEventListener("click", (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!target.classList.contains("rc-radio-btn")) return;
+      if (!this.session.hasSession()) return;
+
+      const group = target.parentElement as HTMLElement;
+      const tooth = parseInt(group.dataset.tooth || "0", 10) as FdiToothNumber;
+      const entry = parseInt(group.dataset.entry || "0", 10);
+      const value = parseInt(target.dataset.value || "0", 10) as RootCariesScore;
+
+      const rcData = this.session.getRootCaries();
+      if (!rcData[tooth]) {
+        rcData[tooth] = new Array(rootCariesEntryCount(tooth)).fill(null);
+      }
+      rcData[tooth]![entry] = value;
+      this.session.touch();
+
+      // Update selected state
+      group.querySelectorAll(".rc-radio-btn").forEach(btn => btn.classList.remove("selected"));
+      target.classList.add("selected");
+    });
+  }
+
+  private refreshRootCariesUI(): void {
+    if (!this.rootCariesContainer || !this.session.hasSession()) return;
+
+    const rcData = this.session.getRootCaries();
+    const groups = this.rootCariesContainer.querySelectorAll(".rc-radio-group") as NodeListOf<HTMLElement>;
+
+    groups.forEach(group => {
+      const tooth = parseInt(group.dataset.tooth || "0", 10) as FdiToothNumber;
+      const entry = parseInt(group.dataset.entry || "0", 10);
+      const toothData = rcData[tooth];
+      const currentValue = toothData ? toothData[entry] : null;
+
+      group.querySelectorAll(".rc-radio-btn").forEach((btn: Element) => {
+        const btnEl = btn as HTMLElement;
+        const v = parseInt(btnEl.dataset.value || "0", 10);
+        btnEl.classList.toggle("selected", currentValue === v);
+      });
+    });
   }
 }

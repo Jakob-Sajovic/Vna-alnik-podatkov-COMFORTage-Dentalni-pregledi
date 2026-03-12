@@ -1,7 +1,7 @@
 import { TabController } from "./tab-manager";
 import { SessionState } from "../model/session";
 import { FdiToothNumber, PBSurface, PBToothData } from "../model/types";
-import { UPPER_RIGHT, UPPER_LEFT, LOWER_LEFT, LOWER_RIGHT, PB_SURFACE_TOOLTIPS } from "../model/constants";
+import { UPPER_RIGHT, UPPER_LEFT, LOWER_LEFT, LOWER_RIGHT, ALL_TEETH, PB_SURFACE_TOOLTIPS } from "../model/constants";
 import { createPBToothSvg, getSurfaceForPosition, VisualPosition } from "../dental/chart-renderer";
 
 type ChartType = "plaque" | "bleeding";
@@ -25,6 +25,9 @@ export class PlaqueBleedingTabController implements TabController {
     this.panel = panel;
     panel.innerHTML = `
       <div class="tab-content-inner">
+        <div class="tab-toolbar">
+          <button class="btn btn-danger-outline btn-sm" id="pb-reset-btn">Ponastavi VPI/GBI</button>
+        </div>
         <div class="chart-section" id="plaque-section">
           <div class="chart-header">
             <span class="chart-title">Plak (VPI)</span>
@@ -44,6 +47,27 @@ export class PlaqueBleedingTabController implements TabController {
         </p>
       </div>
     `;
+
+    // Reset button with two-click confirmation
+    const resetBtn = panel.querySelector("#pb-reset-btn") as HTMLButtonElement;
+    if (resetBtn) {
+      let armed = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      resetBtn.addEventListener("click", () => {
+        if (!armed) {
+          armed = true;
+          resetBtn.textContent = "Ste prepričani?";
+          resetBtn.classList.add("btn-danger-armed");
+          timer = setTimeout(() => { armed = false; resetBtn.textContent = "Ponastavi VPI/GBI"; resetBtn.classList.remove("btn-danger-armed"); }, 3000);
+        } else {
+          if (timer) clearTimeout(timer);
+          armed = false;
+          resetBtn.textContent = "Ponastavi VPI/GBI";
+          resetBtn.classList.remove("btn-danger-armed");
+          this.handleReset();
+        }
+      });
+    }
 
     this.plaqueScoreEl = panel.querySelector("#plaque-score") as HTMLElement;
     this.bleedingScoreEl = panel.querySelector("#bleeding-score") as HTMLElement;
@@ -193,21 +217,8 @@ export class PlaqueBleedingTabController implements TabController {
 
     const tooth = parseInt(toothStr, 10) as FdiToothNumber;
 
-    // Toggle missing in BOTH plaque and bleeding data
-    const plaqueData = this.session.getPlaque()[tooth];
-    const bleedingData = this.session.getBleeding()[tooth];
-
-    const newPresent = !plaqueData.present;
-    plaqueData.present = newPresent;
-    bleedingData.present = newPresent;
-
-    // If marking as missing, clear all surfaces
-    if (!newPresent) {
-      this.clearToothSurfaces(plaqueData);
-      this.clearToothSurfaces(bleedingData);
-    }
-
-    this.session.touch();
+    const newPresent = !this.session.getPlaque()[tooth].present;
+    this.session.setToothPresence(tooth, newPresent);
 
     // Update visuals for both charts
     this.refreshAllSurfaces();
@@ -260,6 +271,20 @@ export class PlaqueBleedingTabController implements TabController {
 
     this.updateScore(this.session.getPlaque(), this.plaqueScoreEl);
     this.updateScore(this.session.getBleeding(), this.bleedingScoreEl);
+  }
+
+  private handleReset(): void {
+    if (!this.session.hasSession()) return;
+
+    const plaque = this.session.getPlaque();
+    const bleeding = this.session.getBleeding();
+    for (const t of ALL_TEETH) {
+      plaque[t] = { present: true, mesial: false, distal: false, buccal: false, lingual: false };
+      bleeding[t] = { present: true, mesial: false, distal: false, buccal: false, lingual: false };
+    }
+    this.session.touch();
+    this.refreshAllSurfaces();
+    this.updateScores();
   }
 
   private updateScore(

@@ -900,6 +900,163 @@ h2 {
   color: #605e5c;
 }
 
+/* ===== Tab Toolbar (reset buttons) ===== */
+.tab-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.btn-sm {
+  min-height: 32px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.btn-danger-outline {
+  background: #fff;
+  color: #a4262c;
+  border: 1px solid #a4262c;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s, color 0.15s;
+}
+
+.btn-danger-outline:hover {
+  background: #fde7e9;
+}
+
+.btn-danger-outline:active {
+  background: #f9d0d4;
+}
+
+.btn-danger-armed {
+  background: #a4262c !important;
+  color: #fff !important;
+  border-color: #a4262c !important;
+}
+
+/* ===== Bulk Set Section (ICDAS) ===== */
+.bulk-set-section {
+  background: #f8f8f8;
+  border: 1px solid #edebe9;
+  border-radius: 6px;
+  padding: 10px;
+  margin-bottom: 12px;
+}
+
+.bulk-set-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.bulk-set-row:last-child {
+  margin-bottom: 0;
+}
+
+.bulk-set-select {
+  flex: 1;
+  min-height: 36px;
+  padding: 4px 8px;
+  border: 1px solid #c8c6c4;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  color: #323130;
+  background: #fff;
+}
+
+.bulk-set-select:focus {
+  outline: none;
+  border-color: #0078d4;
+  box-shadow: 0 0 0 1px #0078d4;
+}
+
+/* ===== Root Caries ===== */
+.root-caries-jaw {
+  margin-bottom: 16px;
+}
+
+.root-caries-jaw-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #323130;
+  margin-bottom: 6px;
+}
+
+.root-caries-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.root-caries-table th {
+  background: #f3f2f1;
+  padding: 6px 4px;
+  text-align: center;
+  font-weight: 600;
+  font-size: 11px;
+  color: #605e5c;
+  border: 1px solid #edebe9;
+}
+
+.root-caries-table td {
+  padding: 4px;
+  text-align: center;
+  border: 1px solid #edebe9;
+}
+
+.root-caries-tooth-num {
+  font-weight: 600;
+  color: #323130;
+  min-width: 36px;
+}
+
+.rc-radio-group {
+  display: inline-flex;
+  gap: 1px;
+}
+
+.rc-radio-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border: 1px solid #c8c6c4;
+  background: #fff;
+  color: #323130;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rc-radio-btn:first-child {
+  border-radius: 4px 0 0 4px;
+}
+
+.rc-radio-btn:last-child {
+  border-radius: 0 4px 4px 0;
+}
+
+.rc-radio-btn.selected {
+  background: #0078d4;
+  border-color: #0078d4;
+  color: #fff;
+}
+
+.rc-radio-btn:hover:not(.selected) {
+  background: #f3f2f1;
+}
+
 /* ===== Tab Help Footer ===== */
 .tab-help-footer {
   font-size: 12px;

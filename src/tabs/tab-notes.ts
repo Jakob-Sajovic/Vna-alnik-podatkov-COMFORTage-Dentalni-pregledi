@@ -17,6 +17,9 @@ export class NotesTabController implements TabController {
     panel.innerHTML = `
       <div class="tab-content-inner">
         <h2>Opombe</h2>
+        <div class="tab-toolbar">
+          <button class="btn btn-danger-outline btn-sm" id="notes-reset-btn">Ponastavi opombe</button>
+        </div>
         <div class="form-group">
           <label class="form-label" for="notes-diagnostic">Diagnostične opombe</label>
           <textarea id="notes-diagnostic" class="form-textarea" rows="6"
@@ -35,6 +38,32 @@ export class NotesTabController implements TabController {
 
     this.diagnosticTextarea = panel.querySelector("#notes-diagnostic") as HTMLTextAreaElement;
     this.qualitativeTextarea = panel.querySelector("#notes-qualitative") as HTMLTextAreaElement;
+
+    const resetBtn = panel.querySelector("#notes-reset-btn") as HTMLButtonElement;
+    if (resetBtn) {
+      let armed = false;
+      let timer: ReturnType<typeof setTimeout> | null = null;
+      resetBtn.addEventListener("click", () => {
+        if (!armed) {
+          armed = true;
+          resetBtn.textContent = "Ste prepričani?";
+          resetBtn.classList.add("btn-danger-armed");
+          timer = setTimeout(() => { armed = false; resetBtn.textContent = "Ponastavi opombe"; resetBtn.classList.remove("btn-danger-armed"); }, 3000);
+        } else {
+          if (timer) clearTimeout(timer);
+          armed = false;
+          resetBtn.textContent = "Ponastavi opombe";
+          resetBtn.classList.remove("btn-danger-armed");
+          if (!this.session.hasSession()) return;
+          const notes = this.session.getNotes();
+          notes.diagnosticNotes = "";
+          notes.qualitativeNotes = "";
+          if (this.diagnosticTextarea) this.diagnosticTextarea.value = "";
+          if (this.qualitativeTextarea) this.qualitativeTextarea.value = "";
+          this.session.touch();
+        }
+      });
+    }
   }
 
   onActivate(): void {
