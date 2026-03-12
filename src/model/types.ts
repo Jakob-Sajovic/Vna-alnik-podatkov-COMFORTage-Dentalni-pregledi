@@ -54,6 +54,7 @@ export interface PatientData {
   firstName: string;
   lastName: string;
   code: string;
+  checkup: number; // Visit/checkup number 1–10
 }
 
 // OHIP-49: 49 item scores, 0–4 Likert or null (unanswered)

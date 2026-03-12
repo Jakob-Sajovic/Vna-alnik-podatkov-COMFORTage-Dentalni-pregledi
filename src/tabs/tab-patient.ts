@@ -7,6 +7,7 @@ export class PatientTabController implements TabController {
 
   // Form field references
   private dateInput: HTMLInputElement | null = null;
+  private checkupSelect: HTMLSelectElement | null = null;
   private firstNameInput: HTMLInputElement | null = null;
   private lastNameInput: HTMLInputElement | null = null;
   private codeInput: HTMLInputElement | null = null;
@@ -29,6 +30,12 @@ export class PatientTabController implements TabController {
         <div class="form-group">
           <label class="form-label" for="patient-date">Datum pregleda</label>
           <input type="date" id="patient-date" class="form-input" />
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="patient-checkup">Zaporedna številka pregleda</label>
+          <select id="patient-checkup" class="form-input">
+            ${Array.from({ length: 10 }, (_, i) => `<option value="${i + 1}">${i + 1}. pregled</option>`).join("")}
+          </select>
         </div>
         <div class="form-group">
           <label class="form-label" for="patient-firstname">Ime</label>
@@ -60,6 +67,7 @@ export class PatientTabController implements TabController {
     `;
 
     this.dateInput = panel.querySelector("#patient-date") as HTMLInputElement;
+    this.checkupSelect = panel.querySelector("#patient-checkup") as HTMLSelectElement;
     this.firstNameInput = panel.querySelector("#patient-firstname") as HTMLInputElement;
     this.lastNameInput = panel.querySelector("#patient-lastname") as HTMLInputElement;
     this.codeInput = panel.querySelector("#patient-code") as HTMLInputElement;
@@ -80,6 +88,7 @@ export class PatientTabController implements TabController {
     const examiner = this.session.getExaminer();
 
     if (this.dateInput) this.dateInput.value = patient.date;
+    if (this.checkupSelect) this.checkupSelect.value = String(patient.checkup || 1);
     if (this.firstNameInput) this.firstNameInput.value = patient.firstName;
     if (this.lastNameInput) this.lastNameInput.value = patient.lastName;
     if (this.codeInput) this.codeInput.value = patient.code;
@@ -97,6 +106,7 @@ export class PatientTabController implements TabController {
   private writeToSession(): void {
     const patient = this.session.getPatient();
     patient.date = this.dateInput?.value || patient.date;
+    patient.checkup = parseInt(this.checkupSelect?.value || "1", 10);
     patient.firstName = this.firstNameInput?.value.trim() || "";
     patient.lastName = this.lastNameInput?.value.trim() || "";
     patient.code = this.codeInput?.value.trim() || "";

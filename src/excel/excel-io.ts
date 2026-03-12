@@ -24,7 +24,7 @@ function getColumnHeaders(): string[] {
   h.push("session_id", "schema_version", "created_at", "modified_at");
 
   // Patient
-  h.push("patient_date", "patient_firstName", "patient_lastName", "patient_code");
+  h.push("patient_date", "patient_firstName", "patient_lastName", "patient_code", "patient_checkup");
 
   // Examiner
   h.push("examiner_firstName", "examiner_lastName");
@@ -90,7 +90,7 @@ function sessionToRow(s: ExaminationSession): (string | number | boolean | null)
   row.push(s.sessionId, s.schemaVersion, s.createdAt, s.modifiedAt);
 
   // Patient
-  row.push(s.patient.date, s.patient.firstName, s.patient.lastName, s.patient.code);
+  row.push(s.patient.date, s.patient.firstName, s.patient.lastName, s.patient.code, s.patient.checkup || 1);
 
   // Examiner
   const examiner = s.examiner || { firstName: "", lastName: "" };
@@ -308,6 +308,9 @@ export async function loadSessionFromExcel(): Promise<ExaminationSession | null>
     if (result && !result.fdiQuestionnaire) {
       result.fdiQuestionnaire = makeDefaultFdiQuestionnaire();
     }
+    if (result && !result.patient.checkup) {
+      result.patient.checkup = 1;
+    }
   });
 
   return result;
@@ -382,6 +385,9 @@ export async function loadSessionFromFile(base64: string): Promise<ExaminationSe
     if (result && !result.fdiQuestionnaire) {
       result.fdiQuestionnaire = makeDefaultFdiQuestionnaire();
     }
+    if (result && !result.patient.checkup) {
+      result.patient.checkup = 1;
+    }
 
     // Clean up imported sheet
     importedSheet.delete();
@@ -425,6 +431,7 @@ function rowToSession(
       firstName: str("patient_firstName"),
       lastName: str("patient_lastName"),
       code: str("patient_code"),
+      checkup: num("patient_checkup") ?? 1,
     },
     examiner: {
       firstName: str("examiner_firstName"),

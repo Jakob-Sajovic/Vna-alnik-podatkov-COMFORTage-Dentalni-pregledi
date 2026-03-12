@@ -84,6 +84,7 @@ ${REPORT_CSS}
     <h1>Zobozdravstveni pregled</h1>
     <div class="report-meta">
       <span><strong>Datum:</strong> ${esc(patient.date || "—")}</span>
+      <span><strong>Pregled:</strong> ${patient.checkup || 1}. pregled</span>
       <span><strong>Preiskovanec:</strong> ${esc(patientName)}</span>
       ${patient.code ? `<span><strong>Koda:</strong> ${esc(patient.code)}</span>` : ""}
       <span><strong>Izvajalec:</strong> ${esc(examinerName)}</span>

@@ -155,6 +155,7 @@ export class SaveReportTabController implements TabController {
         <div class="summary-card-title">Preiskovanec</div>
         <div class="summary-card-content">
           <span class="label">Datum:</span> ${patient.date || "—"}<br>
+          <span class="label">Pregled:</span> ${patient.checkup || 1}. pregled<br>
           <span class="label">Preiskovanec:</span> ${this.escapeHtml(patientName)}<br>
           ${patient.code ? `<span class="label">Koda:</span> ${this.escapeHtml(patient.code)}<br>` : ""}
           <span class="label">Izvajalec:</span> ${this.escapeHtml(examinerName)}
