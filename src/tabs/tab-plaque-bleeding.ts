@@ -43,7 +43,7 @@ export class PlaqueBleedingTabController implements TabController {
           <div id="bleeding-chart"></div>
         </div>
         <p class="tab-help-footer">
-          Kliknite na površino zoba za označitev plaka ali krvavitve. Dvoklik na zob označi zob kot manjkajoč; ponovni dvoklik ga ponovno aktivira.
+          Kliknite na površino zoba za označitev plaka ali krvavitve. Z gumbom ✕ nad/pod karto označite zob kot manjkajoč.
         </p>
       </div>
     `;
@@ -81,9 +81,8 @@ export class PlaqueBleedingTabController implements TabController {
     this.plaqueContainer.addEventListener("click", (e) => this.handleSurfaceClick(e, "plaque"));
     this.bleedingContainer.addEventListener("click", (e) => this.handleSurfaceClick(e, "bleeding"));
 
-    // Double-click for missing tooth toggle
-    this.plaqueContainer.addEventListener("dblclick", (e) => this.handleMissingToggle(e, "plaque"));
-    this.bleedingContainer.addEventListener("dblclick", (e) => this.handleMissingToggle(e, "bleeding"));
+    // Missing tooth buttons (click handler via delegation)
+    this.plaqueContainer.addEventListener("click", (e) => this.handleMissingBtnClick(e));
   }
 
   onActivate(): void {
@@ -116,14 +115,14 @@ export class PlaqueBleedingTabController implements TabController {
 
     const allTeeth = [...leftQuadrant, ...rightQuadrant];
 
-    // For upper jaw: teeth row first, numbers below
-    // For lower jaw: numbers first, teeth row below
     if (jaw === "upper") {
+      if (chartType === "plaque") jawDiv.appendChild(this.createMissingBtnRow(allTeeth));
       jawDiv.appendChild(this.createToothRow(allTeeth, chartType));
       jawDiv.appendChild(this.createNumberRow(allTeeth));
     } else {
       jawDiv.appendChild(this.createNumberRow(allTeeth));
       jawDiv.appendChild(this.createToothRow(allTeeth, chartType));
+      if (chartType === "plaque") jawDiv.appendChild(this.createMissingBtnRow(allTeeth));
     }
 
     container.appendChild(jawDiv);
@@ -204,23 +203,35 @@ export class PlaqueBleedingTabController implements TabController {
     this.updateScores();
   }
 
-  private handleMissingToggle(e: Event, chartType: ChartType): void {
+  private createMissingBtnRow(teeth: FdiToothNumber[]): HTMLElement {
+    const row = document.createElement("div");
+    row.className = "chart-number-row pb-missing-row";
+
+    for (const tooth of teeth) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "pb-missing-btn";
+      btn.dataset.tooth = String(tooth);
+      btn.textContent = "✕";
+      btn.title = `Označi zob ${tooth} kot manjkajoč`;
+      row.appendChild(btn);
+    }
+
+    return row;
+  }
+
+  private handleMissingBtnClick(e: Event): void {
     if (!this.session.hasSession()) return;
-
     const target = e.target as HTMLElement;
-    // Find the tooth-cell ancestor
-    const cell = target.closest(".tooth-cell") as HTMLElement | null;
-    if (!cell) return;
+    if (!target.classList.contains("pb-missing-btn")) return;
 
-    const toothStr = cell.dataset.tooth;
+    const toothStr = target.dataset.tooth;
     if (!toothStr) return;
-
     const tooth = parseInt(toothStr, 10) as FdiToothNumber;
 
     const newPresent = !this.session.getPlaque()[tooth].present;
     this.session.setToothPresence(tooth, newPresent);
 
-    // Update visuals for both charts
     this.refreshAllSurfaces();
     this.updateScores();
   }
@@ -264,6 +275,15 @@ export class PlaqueBleedingTabController implements TabController {
       const toothData = data[tooth];
       poly.classList.toggle(activeClass, toothData[surface]);
     });
+
+    // Update missing buttons (plaque chart only)
+    if (chartType === "plaque") {
+      const btns = container.querySelectorAll(".pb-missing-btn") as NodeListOf<HTMLElement>;
+      btns.forEach((btn) => {
+        const tooth = parseInt(btn.dataset.tooth || "0", 10) as FdiToothNumber;
+        btn.classList.toggle("active", !data[tooth].present);
+      });
+    }
   }
 
   private updateScores(): void {

@@ -529,6 +529,40 @@ h2 {
   margin: 4px 0;
 }
 
+/* ===== VPI/GBI Missing Tooth Buttons ===== */
+.pb-missing-row {
+  gap: 1px;
+}
+
+.pb-missing-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-width: 0;
+  height: 18px;
+  border: 1px solid #d0d0d0;
+  background: #fafafa;
+  color: #a0a0a0;
+  font-size: 9px;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pb-missing-btn:hover {
+  background: #ffe0e0;
+  color: #a4262c;
+}
+
+.pb-missing-btn.active {
+  background: #a4262c;
+  color: #fff;
+  border-color: #a4262c;
+}
+
 /* ===== ICDAS Tab ===== */
 .icdas-help-text {
   font-size: 12px;

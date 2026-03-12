@@ -246,6 +246,9 @@ export class SessionState {
     // ICDAS
     if (!present) {
       s.icdas[tooth].status = "special";
+      if (!s.icdas[tooth].specialCode) {
+        s.icdas[tooth].specialCode = "97";
+      }
     } else {
       s.icdas[tooth].status = "normal";
       s.icdas[tooth].specialCode = null;
