@@ -1,20 +1,22 @@
 import { TabController } from "./tab-manager";
-import { SessionState, makeDefaultProbingData, makeDefaultRootCariesData } from "../model/session";
-import { FdiToothNumber, ProbingSite, ProbingData, RootCariesScore } from "../model/types";
+import { SessionState, makeDefaultProbingData, makeDefaultBOPData, makeDefaultFurcationInvolvementData } from "../model/session";
+import { FdiToothNumber, ProbingSite, ProbingData, FurcationScore } from "../model/types";
 import {
   UPPER_RIGHT,
   UPPER_LEFT,
-  LOWER_LEFT,
-  LOWER_RIGHT,
+  LOWER_JAW_MIRRORED,
   PROBING_BUCCAL_SITES,
   PROBING_LINGUAL_SITES,
   PROBING_SITE_LABELS,
   PROBING_DEPTH_COLORS,
+  PROBING_ALL_SITES,
   FURCATION_GRADES,
   ROOT_CARIES_UPPER_TEETH,
   ROOT_CARIES_LOWER_TEETH,
   rootCariesEntryCount,
   rootCariesLabels,
+  getVisualBuccalSites,
+  getVisualLingualSites,
 } from "../model/constants";
 import { buildToothOutlinesSvg, TOOTH_CENTER_PCT, SITE_SPREAD } from "../dental/tooth-outlines";
 
@@ -31,7 +33,8 @@ export class ProbingTabController implements TabController {
   private selectedTooth: FdiToothNumber | null = null;
   private detailContainer: HTMLElement | null = null;
   private chartContainers: Map<string, HTMLElement> = new Map();
-  private rootCariesContainer: HTMLElement | null = null;
+  private furcationContainer: HTMLElement | null = null;
+  private bopSummaryEl: HTMLElement | null = null;
 
   constructor(session: SessionState) {
     this.session = session;
@@ -51,12 +54,13 @@ export class ProbingTabController implements TabController {
         </p>
         <div id="probing-chart"></div>
         <div id="probing-detail"></div>
-        <div id="root-caries-section">
-          <h2 style="margin-top:24px;">Karioznost korenin</h2>
+        <div id="bop-summary" class="bop-summary-bar" style="margin-top:12px;"></div>
+        <div id="furcation-section">
+          <h2 style="margin-top:24px;">Prizadetost razcepišč</h2>
           <p class="icdas-help-text">
-            Ocena karioznosti korenin na izbranih zobeh (0 = zdravo, 1 = začetna lezija, 2 = kavitirana lezija).
+            Ocena prizadetosti razcepišč na molarjih (0 = brez prizadetosti, 1 = začetna izguba, 2 = delna prizadetost, 3 = popolna prizadetost).
           </p>
-          <div id="root-caries-content"></div>
+          <div id="furcation-content"></div>
         </div>
         <p class="tab-help-footer">
           Za vsak zob vnesite globine sondiranja v milimetrih.
@@ -67,10 +71,11 @@ export class ProbingTabController implements TabController {
 
     const chartContainer = panel.querySelector("#probing-chart") as HTMLElement;
     this.detailContainer = panel.querySelector("#probing-detail") as HTMLElement;
-    this.rootCariesContainer = panel.querySelector("#root-caries-content") as HTMLElement;
+    this.furcationContainer = panel.querySelector("#furcation-content") as HTMLElement;
+    this.bopSummaryEl = panel.querySelector("#bop-summary") as HTMLElement;
 
     this.buildChart(chartContainer);
-    this.buildRootCariesUI();
+    this.buildFurcationUI();
 
     // Reset button with two-click confirmation
     const resetBtn = panel.querySelector("#probing-reset-btn") as HTMLButtonElement;
@@ -100,7 +105,8 @@ export class ProbingTabController implements TabController {
     if (this.selectedTooth !== null) {
       this.showDetail(this.selectedTooth);
     }
-    this.refreshRootCariesUI();
+    this.refreshFurcationUI();
+    this.refreshBOPSummary();
   }
 
   onDeactivate(): void {
@@ -111,7 +117,7 @@ export class ProbingTabController implements TabController {
 
   private buildChart(container: HTMLElement): void {
     const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
-    const lowerTeeth = [...LOWER_LEFT, ...LOWER_RIGHT];
+    const lowerTeeth = [...LOWER_JAW_MIRRORED];
 
     this.buildJaw(container, upperTeeth, "upper", "Zgornja čeljust");
     this.buildJaw(container, lowerTeeth, "lower", "Spodnja čeljust");
@@ -266,7 +272,7 @@ export class ProbingTabController implements TabController {
     const data = this.session.getProbing();
 
     const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
-    const lowerTeeth = [...LOWER_LEFT, ...LOWER_RIGHT];
+    const lowerTeeth = [...LOWER_JAW_MIRRORED];
 
     this.refreshJawCharts("upper", upperTeeth, data);
     this.refreshJawCharts("lower", lowerTeeth, data);
@@ -331,6 +337,12 @@ export class ProbingTabController implements TabController {
 
     const data = this.session.getProbing();
     const td = data[tooth];
+    const bopData = this.session.getBop();
+    const bopTooth = bopData[tooth];
+
+    // Use per-quadrant visual site ordering
+    const visualBuccal = getVisualBuccalSites(tooth);
+    const visualLingual = getVisualLingualSites(tooth);
 
     const buildInputs = (sites: ProbingSite[], label: string): string => {
       let html = `<div class="probing-side-group"><span class="probing-group-label">${label}:</span>`;
@@ -338,21 +350,22 @@ export class ProbingTabController implements TabController {
       for (const site of sites) {
         const val = td[site];
         const displayVal = val !== null ? String(val) : "";
+        const bopChecked = bopTooth[site] ? "checked" : "";
         html += `
           <div class="probing-input-wrap">
             <label class="probing-input-label">${PROBING_SITE_LABELS[site]}</label>
             <input type="number" class="probing-input" data-site="${site}"
                    min="0" max="25" step="0.1" value="${displayVal}"
                    placeholder="mm" inputmode="decimal">
+            <label class="bop-check-label">
+              <input type="checkbox" class="bop-checkbox" data-site="${site}" ${bopChecked} ${!td.present ? "disabled" : ""}>
+              <span class="bop-check-text">Krvavitev</span>
+            </label>
           </div>`;
       }
       html += `</div></div>`;
       return html;
     };
-
-    const furcationOptions = FURCATION_GRADES.map(g =>
-      `<option value="${g.value}" ${td.furcation === g.value ? "selected" : ""}>${g.label}</option>`
-    ).join("");
 
     this.detailContainer.innerHTML = `
       <div class="probing-detail-panel">
@@ -362,19 +375,12 @@ export class ProbingTabController implements TabController {
             ${td.present ? "Označi kot manjkajoč" : "Označi kot prisoten"}
           </button>
         </div>
-        ${buildInputs(PROBING_BUCCAL_SITES, "Bukalno")}
-        ${buildInputs(PROBING_LINGUAL_SITES, "Lingvalno")}
-        <div class="probing-side-group">
-          <span class="probing-group-label">Furkacija:</span>
-          <select class="probing-furcation-select" ${!td.present ? "disabled" : ""}>
-            <option value="">—</option>
-            ${furcationOptions}
-          </select>
-        </div>
+        ${buildInputs(visualBuccal, "Bukalno")}
+        ${buildInputs(visualLingual, "Lingvalno")}
       </div>
     `;
 
-    // Attach event listeners
+    // Attach event listeners for depth inputs
     const inputs = this.detailContainer.querySelectorAll(".probing-input") as NodeListOf<HTMLInputElement>;
     inputs.forEach(input => {
       input.addEventListener("input", () => {
@@ -410,12 +416,15 @@ export class ProbingTabController implements TabController {
       }
     });
 
-    // Furcation dropdown
-    const furcationSelect = this.detailContainer.querySelector(".probing-furcation-select") as HTMLSelectElement;
-    furcationSelect?.addEventListener("change", () => {
-      const raw = furcationSelect.value;
-      td.furcation = raw === "" ? null : parseInt(raw, 10);
-      this.session.touch();
+    // BOP checkbox listeners
+    const bopChecks = this.detailContainer.querySelectorAll(".bop-checkbox") as NodeListOf<HTMLInputElement>;
+    bopChecks.forEach(cb => {
+      cb.addEventListener("change", () => {
+        const site = cb.dataset.site as ProbingSite;
+        (bopTooth as Record<string, boolean>)[site] = cb.checked;
+        this.session.touch();
+        this.refreshBOPSummary();
+      });
     });
 
     // Missing toggle button
@@ -423,6 +432,8 @@ export class ProbingTabController implements TabController {
     missingBtn?.addEventListener("click", () => {
       this.session.setToothPresence(tooth, !td.present);
       this.refreshAllCharts();
+      this.refreshBOPSummary();
+      this.refreshFurcationUI();
       this.showDetail(tooth);
     });
 
@@ -436,17 +447,44 @@ export class ProbingTabController implements TabController {
 
     const session = this.session.getSession();
     session.probing = makeDefaultProbingData();
-    session.rootCaries = makeDefaultRootCariesData();
+    session.bop = makeDefaultBOPData();
+    session.furcationInvolvement = makeDefaultFurcationInvolvementData();
     this.session.touch();
     this.closeDetail();
     this.refreshAllCharts();
-    this.refreshRootCariesUI();
+    this.refreshFurcationUI();
+    this.refreshBOPSummary();
   }
 
-  // ── Root caries UI ──────────────────────────────────────────────
+  // ── BOP summary ─────────────────────────────────────────────────
 
-  private buildRootCariesUI(): void {
-    if (!this.rootCariesContainer) return;
+  private refreshBOPSummary(): void {
+    if (!this.bopSummaryEl || !this.session.hasSession()) return;
+
+    const bopData = this.session.getBop();
+    const probingData = this.session.getProbing();
+    let totalSites = 0;
+    let bleedingSites = 0;
+
+    for (const tooth of Object.keys(probingData)) {
+      const t = parseInt(tooth, 10) as FdiToothNumber;
+      if (!probingData[t].present) continue;
+      for (const site of PROBING_ALL_SITES) {
+        totalSites++;
+        if ((bopData[t] as Record<string, boolean>)[site]) bleedingSites++;
+      }
+    }
+
+    const pct = totalSites > 0 ? ((bleedingSites / totalSites) * 100).toFixed(1) : "0.0";
+    this.bopSummaryEl.innerHTML = `
+      <strong>Krvavitev ob sondiranju (BOP):</strong> ${pct}% (${bleedingSites} od ${totalSites} mest)
+    `;
+  }
+
+  // ── Furcation involvement UI ──────────────────────────────────────
+
+  private buildFurcationUI(): void {
+    if (!this.furcationContainer) return;
 
     const buildJawTable = (teeth: FdiToothNumber[], label: string): string => {
       const entryCount = rootCariesEntryCount(teeth[0]);
@@ -461,10 +499,10 @@ export class ProbingTabController implements TabController {
       html += `</tr></thead><tbody>`;
 
       for (const tooth of teeth) {
-        html += `<tr><td class="root-caries-tooth-num">${tooth}</td>`;
+        html += `<tr data-furc-tooth="${tooth}"><td class="root-caries-tooth-num">${tooth}</td>`;
         for (let i = 0; i < entryCount; i++) {
           html += `<td><div class="rc-radio-group" data-tooth="${tooth}" data-entry="${i}">`;
-          for (let v = 0; v <= 2; v++) {
+          for (let v = 0; v <= 3; v++) {
             html += `<button type="button" class="rc-radio-btn" data-value="${v}">${v}</button>`;
           }
           html += `</div></td>`;
@@ -476,12 +514,12 @@ export class ProbingTabController implements TabController {
       return html;
     };
 
-    this.rootCariesContainer.innerHTML =
+    this.furcationContainer.innerHTML =
       buildJawTable(ROOT_CARIES_UPPER_TEETH, "Zgornja čeljust") +
       buildJawTable(ROOT_CARIES_LOWER_TEETH, "Spodnja čeljust");
 
     // Event delegation for radio buttons
-    this.rootCariesContainer.addEventListener("click", (e: Event) => {
+    this.furcationContainer.addEventListener("click", (e: Event) => {
       const target = e.target as HTMLElement;
       if (!target.classList.contains("rc-radio-btn")) return;
       if (!this.session.hasSession()) return;
@@ -489,13 +527,13 @@ export class ProbingTabController implements TabController {
       const group = target.parentElement as HTMLElement;
       const tooth = parseInt(group.dataset.tooth || "0", 10) as FdiToothNumber;
       const entry = parseInt(group.dataset.entry || "0", 10);
-      const value = parseInt(target.dataset.value || "0", 10) as RootCariesScore;
+      const value = parseInt(target.dataset.value || "0", 10) as FurcationScore;
 
-      const rcData = this.session.getRootCaries();
-      if (!rcData[tooth]) {
-        rcData[tooth] = new Array(rootCariesEntryCount(tooth)).fill(null);
+      const fiData = this.session.getFurcationInvolvement();
+      if (!fiData[tooth]) {
+        fiData[tooth] = new Array(rootCariesEntryCount(tooth)).fill(0) as FurcationScore[];
       }
-      rcData[tooth]![entry] = value;
+      fiData[tooth]![entry] = value;
       this.session.touch();
 
       // Update selected state
@@ -504,23 +542,34 @@ export class ProbingTabController implements TabController {
     });
   }
 
-  private refreshRootCariesUI(): void {
-    if (!this.rootCariesContainer || !this.session.hasSession()) return;
+  private refreshFurcationUI(): void {
+    if (!this.furcationContainer || !this.session.hasSession()) return;
 
-    const rcData = this.session.getRootCaries();
-    const groups = this.rootCariesContainer.querySelectorAll(".rc-radio-group") as NodeListOf<HTMLElement>;
+    const fiData = this.session.getFurcationInvolvement();
+    const probingData = this.session.getProbing();
+    const groups = this.furcationContainer.querySelectorAll(".rc-radio-group") as NodeListOf<HTMLElement>;
 
     groups.forEach(group => {
       const tooth = parseInt(group.dataset.tooth || "0", 10) as FdiToothNumber;
       const entry = parseInt(group.dataset.entry || "0", 10);
-      const toothData = rcData[tooth];
-      const currentValue = toothData ? toothData[entry] : null;
+      const toothData = fiData[tooth];
+      const currentValue = toothData ? toothData[entry] : 0;
+      const isPresent = probingData[tooth]?.present !== false;
 
       group.querySelectorAll(".rc-radio-btn").forEach((btn: Element) => {
-        const btnEl = btn as HTMLElement;
+        const btnEl = btn as HTMLButtonElement;
         const v = parseInt(btnEl.dataset.value || "0", 10);
         btnEl.classList.toggle("selected", currentValue === v);
+        btnEl.disabled = !isPresent;
       });
+    });
+
+    // Dim rows for missing teeth
+    const rows = this.furcationContainer.querySelectorAll("tr[data-furc-tooth]") as NodeListOf<HTMLElement>;
+    rows.forEach(row => {
+      const tooth = parseInt(row.dataset.furcTooth || "0", 10) as FdiToothNumber;
+      const isPresent = probingData[tooth]?.present !== false;
+      row.classList.toggle("furc-disabled", !isPresent);
     });
   }
 }

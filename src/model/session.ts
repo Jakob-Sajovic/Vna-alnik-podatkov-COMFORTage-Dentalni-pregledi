@@ -12,6 +12,12 @@ import {
   ProbingToothData,
   ProbingSite,
   RootCariesData,
+  BOPData,
+  BOPToothData,
+  FurcationScore,
+  FurcationInvolvementData,
+  ICDASRootCariesData,
+  ICDASRootCariesToothData,
   PatientData,
   OhipData,
   NotesData,
@@ -84,6 +90,57 @@ export function makeDefaultRootCariesData(): RootCariesData {
   return createDefaultRootCariesData();
 }
 
+function createDefaultBOPTooth(): BOPToothData {
+  return {
+    distoBuccal: false, buccal: false, mesioBuccal: false,
+    distoLingual: false, lingual: false, mesioLingual: false,
+  };
+}
+
+function createDefaultBOPData(): BOPData {
+  const data: Partial<BOPData> = {};
+  for (const tooth of ALL_TEETH) {
+    data[tooth] = createDefaultBOPTooth();
+  }
+  return data as BOPData;
+}
+
+export function makeDefaultBOPData(): BOPData {
+  return createDefaultBOPData();
+}
+
+function createDefaultFurcationInvolvementData(): FurcationInvolvementData {
+  const data: FurcationInvolvementData = {};
+  for (const tooth of ROOT_CARIES_ALL_TEETH) {
+    const count = rootCariesEntryCount(tooth);
+    data[tooth] = new Array(count).fill(0) as FurcationScore[];
+  }
+  return data;
+}
+
+export function makeDefaultFurcationInvolvementData(): FurcationInvolvementData {
+  return createDefaultFurcationInvolvementData();
+}
+
+function createDefaultICDASRootCariesTooth(): ICDASRootCariesToothData {
+  return {
+    distoBuccal: null, buccal: null, mesioBuccal: null,
+    distoLingual: null, lingual: null, mesioLingual: null,
+  };
+}
+
+function createDefaultICDASRootCariesData(): ICDASRootCariesData {
+  const data: Partial<ICDASRootCariesData> = {};
+  for (const tooth of ALL_TEETH) {
+    data[tooth] = createDefaultICDASRootCariesTooth();
+  }
+  return data as ICDASRootCariesData;
+}
+
+export function makeDefaultICDASRootCariesData(): ICDASRootCariesData {
+  return createDefaultICDASRootCariesData();
+}
+
 function createDefaultICDASData(): ICDASData {
   const data: Partial<ICDASData> = {};
   for (const tooth of ALL_TEETH) {
@@ -118,6 +175,9 @@ function createBlankSession(): ExaminationSession {
     icdas: createDefaultICDASData(),
     probing: createDefaultProbingData(),
     rootCaries: createDefaultRootCariesData(),
+    bop: createDefaultBOPData(),
+    furcationInvolvement: createDefaultFurcationInvolvementData(),
+    icdasRootCaries: createDefaultICDASRootCariesData(),
     notes: { diagnosticNotes: "", qualitativeNotes: "" },
     ohip: new Array(49).fill(null) as OhipData,
     fdiQuestionnaire: createDefaultFdiQuestionnaire(),
@@ -200,6 +260,18 @@ export class SessionState {
     return this.getSession().rootCaries;
   }
 
+  getBop(): BOPData {
+    return this.getSession().bop;
+  }
+
+  getFurcationInvolvement(): FurcationInvolvementData {
+    return this.getSession().furcationInvolvement;
+  }
+
+  getICDASRootCaries(): ICDASRootCariesData {
+    return this.getSession().icdasRootCaries;
+  }
+
   getNotes(): NotesData {
     return this.getSession().notes;
   }
@@ -241,6 +313,34 @@ export class SessionState {
         s.probing[tooth][site as ProbingSite] = null;
       }
       s.probing[tooth].furcation = null;
+    }
+
+    // BOP
+    if (s.bop && s.bop[tooth]) {
+      if (!present) {
+        for (const site of PROBING_ALL_SITES) {
+          (s.bop[tooth] as Record<string, boolean>)[site] = false;
+        }
+      }
+    }
+
+    // Furcation involvement — reset to 0 when tooth becomes present, clear when missing
+    if (s.furcationInvolvement) {
+      const fiData = s.furcationInvolvement[tooth];
+      if (fiData) {
+        if (!present) {
+          for (let i = 0; i < fiData.length; i++) fiData[i] = 0;
+        }
+      }
+    }
+
+    // ICDAS root caries
+    if (s.icdasRootCaries && s.icdasRootCaries[tooth]) {
+      if (!present) {
+        for (const site of PROBING_ALL_SITES) {
+          (s.icdasRootCaries[tooth] as Record<string, number | null>)[site] = null;
+        }
+      }
     }
 
     // ICDAS

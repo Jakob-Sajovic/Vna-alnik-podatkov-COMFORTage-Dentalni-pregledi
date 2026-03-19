@@ -1091,6 +1091,47 @@ h2 {
   background: #f3f2f1;
 }
 
+.rc-radio-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+tr.furc-disabled {
+  opacity: 0.4;
+}
+
+/* ===== BOP Checkbox ===== */
+.bop-check-label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+  font-size: 11px;
+  color: #605e5c;
+  cursor: pointer;
+}
+
+.bop-check-label input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: #d13438;
+}
+
+.bop-check-text {
+  white-space: nowrap;
+}
+
+.bop-summary-bar {
+  background: #fef6f6;
+  border: 1px solid #f3d6d8;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 13px;
+  text-align: center;
+  color: #323130;
+}
+
 /* ===== FDI Questionnaire ===== */
 .fdi-description {
   font-size: 12px;

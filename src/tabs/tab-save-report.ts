@@ -1,7 +1,7 @@
 import { TabController } from "./tab-manager";
 import { SessionState } from "../model/session";
 import { FdiToothNumber, PBSurface, PBToothData, ICDASData, ExaminationSession } from "../model/types";
-import { ALL_TEETH } from "../model/constants";
+import { ALL_TEETH, PROBING_ALL_SITES } from "../model/constants";
 import { saveSessionToExcel } from "../excel/excel-io";
 import { generateReport } from "../report/report-generator";
 
@@ -132,6 +132,7 @@ export class SaveReportTabController implements TabController {
     const teethCount = this.calcTeethCount(s);
     const vpiScore = this.calcPBScore(s.plaque);
     const gbiScore = this.calcPBScore(s.bleeding);
+    const bopScore = this.calcBOPScore(s);
     const icdasSummary = this.calcICDASSummary(s.icdas);
 
     let ohipTotal = 0;
@@ -185,6 +186,13 @@ export class SaveReportTabController implements TabController {
       </div>
 
       <div class="summary-card">
+        <div class="summary-card-title">BOP (Krvavitev ob sondiranju)</div>
+        <div class="summary-card-content">
+          ${bopScore.pct}% (${bopScore.active} od ${bopScore.total} mest)
+        </div>
+      </div>
+
+      <div class="summary-card">
         <div class="summary-card-title">ICDAS</div>
         <div class="summary-card-content">
           <span class="label">Ocenjenih zob:</span> ${icdasSummary.assessed} / 32<br>
@@ -229,6 +237,29 @@ export class SaveReportTabController implements TabController {
       for (const s of surfaces) {
         total++;
         if (td[s]) active++;
+      }
+    }
+
+    const pct = total > 0 ? ((active / total) * 100).toFixed(1) : "0.0";
+    return { pct, active, total };
+  }
+
+  private calcBOPScore(s: ExaminationSession): {
+    pct: string;
+    active: number;
+    total: number;
+  } {
+    let total = 0;
+    let active = 0;
+
+    if (s.bop && s.probing) {
+      for (const tooth of Object.keys(s.probing)) {
+        const t = parseInt(tooth, 10) as FdiToothNumber;
+        if (!s.probing[t].present) continue;
+        for (const site of PROBING_ALL_SITES) {
+          total++;
+          if ((s.bop[t] as Record<string, boolean>)[site]) active++;
+        }
       }
     }
 

@@ -1,7 +1,7 @@
 import { FdiToothNumber, SpecialCaseCode, ProbingSite } from "./types";
 
 // Schema version for data persistence
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 // FDI tooth numbers by quadrant (used for chart layout)
 export const UPPER_RIGHT: FdiToothNumber[] = [18, 17, 16, 15, 14, 13, 12, 11];
@@ -13,6 +13,12 @@ export const LOWER_RIGHT: FdiToothNumber[] = [41, 42, 43, 44, 45, 46, 47, 48];
 export const ALL_TEETH: FdiToothNumber[] = [
   ...UPPER_RIGHT, ...UPPER_LEFT,
   ...LOWER_LEFT, ...LOWER_RIGHT,
+];
+
+// Lower jaw mirrored: 48→41, 31→38 (used in probing and ICDAS tabs)
+export const LOWER_JAW_MIRRORED: FdiToothNumber[] = [
+  48, 47, 46, 45, 44, 43, 42, 41,
+  31, 32, 33, 34, 35, 36, 37, 38,
 ];
 
 // ICDAS restoration/surface status codes (Slovenian labels)
@@ -143,6 +149,32 @@ export const PROBING_SITE_LABELS: Record<ProbingSite, string> = {
   distoBuccal: "Disto-bukalno", buccal: "Bukalno", mesioBuccal: "Mezio-bukalno",
   distoLingual: "Disto-lingvalno", lingual: "Lingvalno", mesioLingual: "Mezio-lingvalno",
 };
+
+// Reversed site arrays for per-quadrant visual reordering
+export const PROBING_BUCCAL_SITES_REVERSED: ProbingSite[] = ["mesioBuccal", "buccal", "distoBuccal"];
+export const PROBING_LINGUAL_SITES_REVERSED: ProbingSite[] = ["mesioLingual", "lingual", "distoLingual"];
+
+/**
+ * Get the visual (left-to-right) site order for a given tooth and side.
+ * Only specified rows are reordered; the rest keep the default order.
+ *
+ * Reordered rows:
+ *  - Teeth 21–28 and 41–48, buccal: mB, B, dB (reversed)
+ *  - Teeth 11–18 and 31–38, lingual: mL, L, dL (reversed)
+ */
+export function getVisualBuccalSites(tooth: FdiToothNumber): ProbingSite[] {
+  const q = Math.floor(tooth / 10);
+  // Q2 (21-28) and Q4 (41-48) buccal → reversed
+  if (q === 2 || q === 4) return PROBING_BUCCAL_SITES_REVERSED;
+  return PROBING_BUCCAL_SITES;
+}
+
+export function getVisualLingualSites(tooth: FdiToothNumber): ProbingSite[] {
+  const q = Math.floor(tooth / 10);
+  // Q1 (11-18) and Q3 (31-38) lingual → reversed
+  if (q === 1 || q === 3) return PROBING_LINGUAL_SITES_REVERSED;
+  return PROBING_LINGUAL_SITES;
+}
 
 export const FURCATION_GRADES: { value: number; label: string }[] = [
   { value: 0, label: "0 — Brez prizadetosti" },

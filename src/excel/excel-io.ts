@@ -7,9 +7,18 @@ import {
   ICDASSurface,
   PBToothData,
   ProbingSite,
+  FurcationScore,
+  ICDASRootCariesScore,
 } from "../model/types";
 import { ALL_TEETH, SCHEMA_VERSION, PROBING_ALL_SITES, ROOT_CARIES_ALL_TEETH, rootCariesEntryCount } from "../model/constants";
-import { makeDefaultProbingData, makeDefaultRootCariesData, makeDefaultFdiQuestionnaire } from "../model/session";
+import {
+  makeDefaultProbingData,
+  makeDefaultRootCariesData,
+  makeDefaultFdiQuestionnaire,
+  makeDefaultBOPData,
+  makeDefaultFurcationInvolvementData,
+  makeDefaultICDASRootCariesData,
+} from "../model/session";
 
 const SHEET_NAME = "DentalExam_Data";
 const PB_SURFACES: PBSurface[] = ["mesial", "distal", "buccal", "lingual"];
@@ -30,7 +39,7 @@ function getColumnHeaders(): string[] {
   h.push("examiner_firstName", "examiner_lastName");
 
   // Computed scores
-  h.push("vpi_score_pct", "gbi_score_pct", "ohip_total", "present_teeth_count");
+  h.push("vpi_score_pct", "gbi_score_pct", "bop_score_pct", "ohip_total", "present_teeth_count");
 
   // Plaque per tooth
   for (const t of ALL_TEETH) {
@@ -59,10 +68,26 @@ function getColumnHeaders(): string[] {
     h.push(`probing_${t}_furcation`);
   }
 
-  // Root caries per measured tooth
+  // Root caries per measured tooth (legacy)
   for (const t of ROOT_CARIES_ALL_TEETH) {
     const count = rootCariesEntryCount(t);
     for (let i = 0; i < count; i++) h.push(`rootcaries_${t}_${i}`);
+  }
+
+  // BOP per tooth (6 sites each)
+  for (const t of ALL_TEETH) {
+    for (const s of PROBING_ALL_SITES) h.push(`bop_${t}_${s}`);
+  }
+
+  // Furcation involvement per measured tooth
+  for (const t of ROOT_CARIES_ALL_TEETH) {
+    const count = rootCariesEntryCount(t);
+    for (let i = 0; i < count; i++) h.push(`furcation_${t}_${i}`);
+  }
+
+  // ICDAS root caries per tooth (6 sites each)
+  for (const t of ALL_TEETH) {
+    for (const s of PROBING_ALL_SITES) h.push(`ircaries_${t}_${s}`);
   }
 
   // Notes
@@ -97,7 +122,7 @@ function sessionToRow(s: ExaminationSession): (string | number | boolean | null)
   row.push(examiner.firstName, examiner.lastName);
 
   // Computed scores
-  row.push(calcPBPct(s.plaque), calcPBPct(s.bleeding), calcOhipTotal(s.ohip), calcPresentTeeth(s));
+  row.push(calcPBPct(s.plaque), calcPBPct(s.bleeding), calcBOPPct(s), calcOhipTotal(s.ohip), calcPresentTeeth(s));
 
   // Plaque
   for (const t of ALL_TEETH) {
@@ -131,12 +156,38 @@ function sessionToRow(s: ExaminationSession): (string | number | boolean | null)
     row.push(pt.furcation);
   }
 
-  // Root caries
+  // Root caries (legacy)
   const rc = s.rootCaries || {};
   for (const t of ROOT_CARIES_ALL_TEETH) {
     const count = rootCariesEntryCount(t);
     const entries = rc[t] || new Array(count).fill(null);
     for (let i = 0; i < count; i++) row.push(entries[i]);
+  }
+
+  // BOP
+  const bop = s.bop || {};
+  for (const t of ALL_TEETH) {
+    for (const site of PROBING_ALL_SITES) {
+      const td = bop[t];
+      row.push(td ? (td as Record<string, boolean>)[site] : false);
+    }
+  }
+
+  // Furcation involvement
+  const fi = s.furcationInvolvement || {};
+  for (const t of ROOT_CARIES_ALL_TEETH) {
+    const count = rootCariesEntryCount(t);
+    const entries = fi[t] || new Array(count).fill(0);
+    for (let i = 0; i < count; i++) row.push(entries[i]);
+  }
+
+  // ICDAS root caries
+  const icRC = s.icdasRootCaries || {};
+  for (const t of ALL_TEETH) {
+    for (const site of PROBING_ALL_SITES) {
+      const td = icRC[t];
+      row.push(td ? (td as Record<string, number | null>)[site] : null);
+    }
   }
 
   // Notes
@@ -165,6 +216,20 @@ function calcPBPct(data: Record<FdiToothNumber, PBToothData>): number {
     for (const sf of PB_SURFACES) {
       total++;
       if (td[sf]) active++;
+    }
+  }
+  return total > 0 ? Math.round((active / total) * 1000) / 10 : 0;
+}
+
+function calcBOPPct(s: ExaminationSession): number {
+  if (!s.bop || !s.probing) return 0;
+  let total = 0;
+  let active = 0;
+  for (const t of ALL_TEETH) {
+    if (!s.probing[t].present) continue;
+    for (const site of PROBING_ALL_SITES) {
+      total++;
+      if ((s.bop[t] as Record<string, boolean>)[site]) active++;
     }
   }
   return total > 0 ? Math.round((active / total) * 1000) / 10 : 0;
@@ -299,17 +364,14 @@ export async function loadSessionFromExcel(): Promise<ExaminationSession | null>
     }
 
     // Backward compat: ensure fields exist for old files
-    if (result && !result.probing) {
-      result.probing = makeDefaultProbingData();
-    }
-    if (result && !result.rootCaries) {
-      result.rootCaries = makeDefaultRootCariesData();
-    }
-    if (result && !result.fdiQuestionnaire) {
-      result.fdiQuestionnaire = makeDefaultFdiQuestionnaire();
-    }
-    if (result && !result.patient.checkup) {
-      result.patient.checkup = 1;
+    if (result) {
+      if (!result.probing) result.probing = makeDefaultProbingData();
+      if (!result.rootCaries) result.rootCaries = makeDefaultRootCariesData();
+      if (!result.fdiQuestionnaire) result.fdiQuestionnaire = makeDefaultFdiQuestionnaire();
+      if (!result.patient.checkup) result.patient.checkup = 1;
+      if (!result.bop) result.bop = makeDefaultBOPData();
+      if (!result.furcationInvolvement) result.furcationInvolvement = makeDefaultFurcationInvolvementData();
+      if (!result.icdasRootCaries) result.icdasRootCaries = makeDefaultICDASRootCariesData();
     }
   });
 
@@ -376,17 +438,14 @@ export async function loadSessionFromFile(base64: string): Promise<ExaminationSe
     }
 
     // Backward compat: ensure fields exist for old files
-    if (result && !result.probing) {
-      result.probing = makeDefaultProbingData();
-    }
-    if (result && !result.rootCaries) {
-      result.rootCaries = makeDefaultRootCariesData();
-    }
-    if (result && !result.fdiQuestionnaire) {
-      result.fdiQuestionnaire = makeDefaultFdiQuestionnaire();
-    }
-    if (result && !result.patient.checkup) {
-      result.patient.checkup = 1;
+    if (result) {
+      if (!result.probing) result.probing = makeDefaultProbingData();
+      if (!result.rootCaries) result.rootCaries = makeDefaultRootCariesData();
+      if (!result.fdiQuestionnaire) result.fdiQuestionnaire = makeDefaultFdiQuestionnaire();
+      if (!result.patient.checkup) result.patient.checkup = 1;
+      if (!result.bop) result.bop = makeDefaultBOPData();
+      if (!result.furcationInvolvement) result.furcationInvolvement = makeDefaultFurcationInvolvementData();
+      if (!result.icdasRootCaries) result.icdasRootCaries = makeDefaultICDASRootCariesData();
     }
 
     // Clean up imported sheet
@@ -442,6 +501,9 @@ function rowToSession(
     icdas: {} as ExaminationSession["icdas"],
     probing: makeDefaultProbingData(),
     rootCaries: makeDefaultRootCariesData(),
+    bop: makeDefaultBOPData(),
+    furcationInvolvement: makeDefaultFurcationInvolvementData(),
+    icdasRootCaries: makeDefaultICDASRootCariesData(),
     notes: {
       diagnosticNotes: str("notes_diagnostic"),
       qualitativeNotes: str("notes_qualitative"),
@@ -501,7 +563,7 @@ function rowToSession(
     }
   }
 
-  // Root caries
+  // Root caries (legacy)
   for (const t of ROOT_CARIES_ALL_TEETH) {
     const count = rootCariesEntryCount(t);
     const hasCol = headers.indexOf(`rootcaries_${t}_0`) >= 0;
@@ -509,6 +571,37 @@ function rowToSession(
       const entries: (number | null)[] = [];
       for (let i = 0; i < count; i++) entries.push(num(`rootcaries_${t}_${i}`));
       session.rootCaries[t] = entries as ExaminationSession["rootCaries"][typeof t];
+    }
+  }
+
+  // BOP
+  for (const t of ALL_TEETH) {
+    const hasCol = headers.indexOf(`bop_${t}_distoBuccal`) >= 0;
+    if (hasCol) {
+      for (const site of PROBING_ALL_SITES) {
+        (session.bop[t] as Record<string, boolean>)[site] = bool(`bop_${t}_${site}`);
+      }
+    }
+  }
+
+  // Furcation involvement
+  for (const t of ROOT_CARIES_ALL_TEETH) {
+    const count = rootCariesEntryCount(t);
+    const hasCol = headers.indexOf(`furcation_${t}_0`) >= 0;
+    if (hasCol) {
+      const entries: number[] = [];
+      for (let i = 0; i < count; i++) entries.push((num(`furcation_${t}_${i}`) ?? 0) as FurcationScore);
+      session.furcationInvolvement[t] = entries as FurcationScore[];
+    }
+  }
+
+  // ICDAS root caries
+  for (const t of ALL_TEETH) {
+    const hasCol = headers.indexOf(`ircaries_${t}_distoBuccal`) >= 0;
+    if (hasCol) {
+      for (const site of PROBING_ALL_SITES) {
+        (session.icdasRootCaries[t] as Record<string, number | null>)[site] = num(`ircaries_${t}_${site}`);
+      }
     }
   }
 

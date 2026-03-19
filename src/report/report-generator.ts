@@ -13,6 +13,7 @@ import {
   UPPER_LEFT,
   LOWER_LEFT,
   LOWER_RIGHT,
+  LOWER_JAW_MIRRORED,
   ALL_TEETH,
   RESTORATION_LABELS,
   CARIES_LABELS,
@@ -95,8 +96,10 @@ ${REPORT_CSS}
   ${buildPBSection("Indeks zobnih oblog — VPI", s.plaque, "#ffd335")}
   ${buildPBSection("Indeks krvavitve dlesni — GBI", s.bleeding, "#ff6b6b")}
   ${buildICDASSection(s)}
+  ${buildICDASRootCariesSection(s)}
   ${buildProbingSection(s)}
-  ${buildRootCariesSection(s)}
+  ${buildBOPSection(s)}
+  ${buildFurcationSection(s)}
   ${buildNotesSection(s)}
   ${buildOhipSection(s)}
   ${buildFdiSection(s)}
@@ -185,7 +188,7 @@ function buildICDASSection(s: ExaminationSession): string {
   const icdas = s.icdas;
 
   const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
-  const lowerTeeth = [...LOWER_LEFT, ...LOWER_RIGHT];
+  const lowerTeeth = [...LOWER_JAW_MIRRORED];
 
   return `
   <section class="section page-break">
@@ -274,7 +277,7 @@ function buildProbingSection(s: ExaminationSession): string {
   if (!s.probing) return "";
 
   const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
-  const lowerTeeth = [...LOWER_LEFT, ...LOWER_RIGHT];
+  const lowerTeeth = [...LOWER_JAW_MIRRORED];
 
   return `
   <section class="section page-break">
@@ -399,7 +402,8 @@ function buildProbingJawReport(
   html += `<div style="font-size:9px;color:#888;margin-bottom:2px;">${bottomLabel}</div>`;
   html += `<div class="probing-report-chart">${buildProbingAreaChartSvg(teeth, bottomSites, data, reportW, jaw)}</div>`;
 
-  // Transposed data table
+  // Transposed data table — use visual site ordering per tooth
+  // Since teeth may come from different quadrants, we list all 6 site keys and label them
   const allSites: ProbingSite[] = [...PROBING_BUCCAL_SITES, ...PROBING_LINGUAL_SITES];
   const colCount = teeth.length + 1;
 
@@ -429,34 +433,77 @@ function buildProbingJawReport(
     html += `</tr>`;
   }
 
-  // Furcation row
-  html += `<tr><td class="surface-label-cell">Furkacija</td>`;
-  for (const tooth of teeth) {
-    const td = data[tooth];
-    if (!td.present) {
-      html += `<td class="missing-cell">—</td>`;
-    } else {
-      html += `<td>${td.furcation !== null && td.furcation !== undefined ? td.furcation : "—"}</td>`;
-    }
-  }
-  html += `</tr>`;
-
   html += `</tbody></table>`;
   return html;
 }
 
-// ── Root caries section ───────────────────────────────────────────
+// ── BOP section ──────────────────────────────────────────────────
 
-function buildRootCariesSection(s: ExaminationSession): string {
-  const rc = s.rootCaries;
-  if (!rc) return "";
+function buildBOPSection(s: ExaminationSession): string {
+  if (!s.bop || !s.probing) return "";
 
-  // Check if any data exists
+  let totalSites = 0;
+  let bleedingSites = 0;
+  for (const t of ALL_TEETH) {
+    if (!s.probing[t].present) continue;
+    for (const site of PROBING_ALL_SITES) {
+      totalSites++;
+      if ((s.bop[t] as Record<string, boolean>)[site]) bleedingSites++;
+    }
+  }
+
+  if (bleedingSites === 0) return "";
+
+  const pct = totalSites > 0 ? ((bleedingSites / totalSites) * 100).toFixed(1) : "0.0";
+
+  const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
+  const lowerTeeth = [...LOWER_JAW_MIRRORED];
+
+  const buildTable = (teeth: FdiToothNumber[], jawLabel: string): string => {
+    const allSites: ProbingSite[] = [...PROBING_BUCCAL_SITES, ...PROBING_LINGUAL_SITES];
+
+    let html = `<h3 style="margin:8px 0 4px;">${jawLabel}</h3>`;
+    html += `<table class="pb-table"><thead><tr><th class="surface-label-cell"></th>`;
+    for (const tooth of teeth) html += `<th>${tooth}</th>`;
+    html += `</tr></thead><tbody>`;
+
+    for (const site of allSites) {
+      html += `<tr><td class="surface-label-cell">${PROBING_SITE_LABELS[site]}</td>`;
+      for (const tooth of teeth) {
+        if (!s.probing[tooth].present) {
+          html += `<td class="missing-cell">—</td>`;
+        } else {
+          const bleeding = (s.bop[tooth] as Record<string, boolean>)[site];
+          html += `<td ${bleeding ? 'style="background:#ffcdd2;color:#c62828;font-weight:600;"' : ""}>${bleeding ? "●" : "○"}</td>`;
+        }
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    return html;
+  };
+
+  return `
+  <section class="section">
+    <h2>Krvavitev ob sondiranju — BOP</h2>
+    <p class="score"><strong>${pct}%</strong> (${bleedingSites} od ${totalSites} mest)</p>
+    ${buildTable(upperTeeth, "Zgornja čeljust")}
+    ${buildTable(lowerTeeth, "Spodnja čeljust")}
+  </section>`;
+}
+
+// ── Furcation involvement section ─────────────────────────────────
+
+function buildFurcationSection(s: ExaminationSession): string {
+  const fi = s.furcationInvolvement;
+  if (!fi) return "";
+
+  // Check if any non-zero data exists
   let hasData = false;
   for (const teeth of [ROOT_CARIES_UPPER_TEETH, ROOT_CARIES_LOWER_TEETH]) {
     for (const t of teeth) {
-      const entries = rc[t];
-      if (entries && entries.some(v => v !== null)) { hasData = true; break; }
+      const entries = fi[t];
+      if (entries && entries.some(v => v > 0)) { hasData = true; break; }
     }
     if (hasData) break;
   }
@@ -470,11 +517,16 @@ function buildRootCariesSection(s: ExaminationSession): string {
     html += `</tr></thead><tbody>`;
 
     for (const t of teeth) {
-      const entries = rc[t] || [];
+      const entries = fi[t] || [];
+      const isPresent = s.probing?.[t]?.present !== false;
       html += `<tr><td class="surface-label-cell">${t}</td>`;
       for (let i = 0; i < labels.length; i++) {
         const v = entries[i];
-        html += `<td>${v !== null && v !== undefined ? v : "—"}</td>`;
+        if (!isPresent) {
+          html += `<td class="missing-cell">—</td>`;
+        } else {
+          html += `<td>${v !== null && v !== undefined ? v : "0"}</td>`;
+        }
       }
       html += `</tr>`;
     }
@@ -484,10 +536,66 @@ function buildRootCariesSection(s: ExaminationSession): string {
 
   return `
   <section class="section">
-    <h2>Karioznost korenin</h2>
-    <p style="font-size:10px;color:#555;margin-bottom:8px;">0 = zdravo, 1 = začetna lezija, 2 = kavitirana lezija</p>
+    <h2>Prizadetost razcepišč</h2>
+    <p style="font-size:10px;color:#555;margin-bottom:8px;">0 = brez prizadetosti, 1 = začetna izguba, 2 = delna prizadetost, 3 = popolna prizadetost</p>
     ${buildTable(ROOT_CARIES_UPPER_TEETH, "Zgornja čeljust")}
     ${buildTable(ROOT_CARIES_LOWER_TEETH, "Spodnja čeljust")}
+  </section>`;
+}
+
+// ── ICDAS Root Caries section ─────────────────────────────────────
+
+function buildICDASRootCariesSection(s: ExaminationSession): string {
+  const icRC = s.icdasRootCaries;
+  if (!icRC) return "";
+
+  // Check if any data exists
+  let hasData = false;
+  for (const t of ALL_TEETH) {
+    const td = icRC[t];
+    if (td) {
+      for (const site of PROBING_ALL_SITES) {
+        if ((td as Record<string, number | null>)[site] !== null) { hasData = true; break; }
+      }
+    }
+    if (hasData) break;
+  }
+  if (!hasData) return "";
+
+  const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
+  const lowerTeeth = [...LOWER_JAW_MIRRORED];
+  const allSites: ProbingSite[] = [...PROBING_BUCCAL_SITES, ...PROBING_LINGUAL_SITES];
+
+  const buildTable = (teeth: FdiToothNumber[], jawLabel: string): string => {
+    let html = `<h3 style="margin:8px 0 4px;">${jawLabel}</h3>`;
+    html += `<table class="pb-table"><thead><tr><th class="surface-label-cell"></th>`;
+    for (const tooth of teeth) html += `<th>${tooth}</th>`;
+    html += `</tr></thead><tbody>`;
+
+    for (const site of allSites) {
+      html += `<tr><td class="surface-label-cell">${PROBING_SITE_LABELS[site]}</td>`;
+      for (const tooth of teeth) {
+        const td = icRC[tooth];
+        const isNormal = s.icdas[tooth].status !== "special";
+        if (!isNormal) {
+          html += `<td class="missing-cell">—</td>`;
+        } else {
+          const v = td ? (td as Record<string, number | null>)[site] : null;
+          html += `<td>${v !== null && v !== undefined ? v : "—"}</td>`;
+        }
+      }
+      html += `</tr>`;
+    }
+    html += `</tbody></table>`;
+    return html;
+  };
+
+  return `
+  <section class="section">
+    <h2>Koreninski karies</h2>
+    <p style="font-size:10px;color:#555;margin-bottom:8px;">0 = brez kariesa, 1 = začetna lezija, 2 = kavitirana lezija</p>
+    ${buildTable(upperTeeth, "Zgornja čeljust")}
+    ${buildTable(lowerTeeth, "Spodnja čeljust")}
   </section>`;
 }
 
@@ -774,7 +882,7 @@ const ICDAS_CARIES_COLORS: Record<number, string> = {
 
 function buildICDASChartSvg(icdas: ExaminationSession["icdas"]): string {
   const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
-  const lowerTeeth = [...LOWER_LEFT, ...LOWER_RIGHT];
+  const lowerTeeth = [...LOWER_JAW_MIRRORED];
   const c = CHART.cell;
   const h = c / 2;
   const m = Math.round(c * 0.25);

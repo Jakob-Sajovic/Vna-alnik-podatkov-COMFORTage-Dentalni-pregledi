@@ -79,10 +79,36 @@ export interface ProbingToothData {
 
 export type ProbingData = Record<FdiToothNumber, ProbingToothData>;
 
-// Root caries (0 = healthy, 1 = initial, 2 = cavitated)
+// Root caries (0 = healthy, 1 = initial, 2 = cavitated) — legacy, kept for backwards compat
 export type RootCariesScore = 0 | 1 | 2;
-// Only measured teeth have entries; upper molars get 3, lower molars get 2
 export type RootCariesData = Partial<Record<FdiToothNumber, (RootCariesScore | null)[]>>;
+
+// Furcation involvement (Prizadetost razcepišč) — replaces root caries in probing tab
+export type FurcationScore = 0 | 1 | 2 | 3;
+export type FurcationInvolvementData = Partial<Record<FdiToothNumber, FurcationScore[]>>;
+
+// Bleeding on Probing (BOP) — checkbox per probing site
+export interface BOPToothData {
+  distoBuccal: boolean;
+  buccal: boolean;
+  mesioBuccal: boolean;
+  distoLingual: boolean;
+  lingual: boolean;
+  mesioLingual: boolean;
+}
+export type BOPData = Record<FdiToothNumber, BOPToothData>;
+
+// ICDAS Root Caries (Koreninski karies) — 6 sites per tooth, values 0/1/2
+export type ICDASRootCariesScore = 0 | 1 | 2;
+export interface ICDASRootCariesToothData {
+  distoBuccal: ICDASRootCariesScore | null;
+  buccal: ICDASRootCariesScore | null;
+  mesioBuccal: ICDASRootCariesScore | null;
+  distoLingual: ICDASRootCariesScore | null;
+  lingual: ICDASRootCariesScore | null;
+  mesioLingual: ICDASRootCariesScore | null;
+}
+export type ICDASRootCariesData = Record<FdiToothNumber, ICDASRootCariesToothData>;
 
 // Free-text notes
 export interface NotesData {
@@ -121,7 +147,10 @@ export interface ExaminationSession {
   bleeding: BleedingData;
   icdas: ICDASData;
   probing: ProbingData;
-  rootCaries: RootCariesData;
+  rootCaries: RootCariesData; // legacy — kept for backwards compat
+  bop: BOPData;
+  furcationInvolvement: FurcationInvolvementData;
+  icdasRootCaries: ICDASRootCariesData;
   notes: NotesData;
   ohip: OhipData;
   fdiQuestionnaire: FdiQuestionnaireData;

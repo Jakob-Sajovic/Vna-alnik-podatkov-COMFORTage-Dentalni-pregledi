@@ -6,18 +6,23 @@ import {
   RestorationCode,
   CariesCode,
   SpecialCaseCode,
+  ProbingSite,
+  ICDASRootCariesScore,
 } from "../model/types";
 import {
   UPPER_RIGHT,
   UPPER_LEFT,
-  LOWER_LEFT,
-  LOWER_RIGHT,
+  LOWER_JAW_MIRRORED,
   ALL_TEETH,
   RESTORATION_LABELS,
   CARIES_LABELS,
   SPECIAL_CASE_LABELS,
   ICDAS_SURFACE_LABELS,
   ICDAS_SURFACE_FULL_NAMES,
+  PROBING_BUCCAL_SITES,
+  PROBING_LINGUAL_SITES,
+  PROBING_SITE_LABELS,
+  PROBING_ALL_SITES,
 } from "../model/constants";
 import {
   createICDASToothSvg,
@@ -33,6 +38,7 @@ export class ICDASTabController implements TabController {
   private session: SessionState;
   private chartContainer: HTMLElement | null = null;
   private detailPanel: HTMLElement | null = null;
+  private rootCariesContainer: HTMLElement | null = null;
   private selectedTooth: FdiToothNumber | null = null;
 
   constructor(session: SessionState) {
@@ -54,6 +60,14 @@ export class ICDASTabController implements TabController {
         </p>
         <div id="icdas-chart"></div>
         <div id="icdas-detail"></div>
+        <div id="icdas-root-caries-section" style="margin-top:24px;">
+          <h2>Koreninski karies</h2>
+          <p class="icdas-help-text">
+            Ocena koreninskega kariesa na zobeh (6 mest na zob). Samo za zobje brez posebnega primera.
+            0 = brez kariesa, 1 = začetna lezija, 2 = kavitirana lezija.
+          </p>
+          <div id="icdas-root-caries-content"></div>
+        </div>
         <p class="tab-help-footer">
           Kliknite na zob v karti za prikaz podrobnosti. Za vsako površino izberite kodo zobne površine in kariozne spremembe. Za posebne primere (manjkajoč, neizrasel ipd.) izberite "Poseben primer" v spustnem seznamu.
         </p>
@@ -62,8 +76,10 @@ export class ICDASTabController implements TabController {
 
     this.chartContainer = panel.querySelector("#icdas-chart") as HTMLElement;
     this.detailPanel = panel.querySelector("#icdas-detail") as HTMLElement;
+    this.rootCariesContainer = panel.querySelector("#icdas-root-caries-content") as HTMLElement;
 
     this.buildChart();
+    this.buildICDASRootCariesUI();
 
     // Event delegation for tooth clicks
     this.chartContainer.addEventListener("click", (e) => this.handleChartClick(e));
@@ -96,6 +112,7 @@ export class ICDASTabController implements TabController {
     if (this.selectedTooth !== null) {
       this.showDetailForTooth(this.selectedTooth);
     }
+    this.refreshICDASRootCariesUI();
   }
 
   onDeactivate(): void {
@@ -107,21 +124,18 @@ export class ICDASTabController implements TabController {
   private buildChart(): void {
     if (!this.chartContainer) return;
     // Upper jaw: Q1 (right) then Q2 (left)
-    this.buildJaw(this.chartContainer, UPPER_RIGHT, UPPER_LEFT, "upper");
-    // Lower jaw: Q3 (left) then Q4 (right)
-    this.buildJaw(this.chartContainer, LOWER_LEFT, LOWER_RIGHT, "lower");
+    this.buildJaw(this.chartContainer, [...UPPER_RIGHT, ...UPPER_LEFT], "upper");
+    // Lower jaw: mirrored (48→41, 31→38)
+    this.buildJaw(this.chartContainer, [...LOWER_JAW_MIRRORED], "lower");
   }
 
   private buildJaw(
     container: HTMLElement,
-    leftQuadrant: FdiToothNumber[],
-    rightQuadrant: FdiToothNumber[],
+    allTeeth: FdiToothNumber[],
     jaw: "upper" | "lower"
   ): void {
     const jawDiv = document.createElement("div");
     jawDiv.className = "chart-jaw";
-
-    const allTeeth = [...leftQuadrant, ...rightQuadrant];
 
     if (jaw === "upper") {
       jawDiv.appendChild(this.createToothRow(allTeeth));
@@ -397,9 +411,20 @@ export class ICDASTabController implements TabController {
         },
       };
     }
+
+    // Reset ICDAS root caries
+    const icRC = this.session.getICDASRootCaries();
+    for (const t of ALL_TEETH) {
+      icRC[t] = {
+        distoBuccal: null, buccal: null, mesioBuccal: null,
+        distoLingual: null, lingual: null, mesioLingual: null,
+      };
+    }
+
     this.session.touch();
     this.closeDetail();
     this.refreshAllTeeth();
+    this.refreshICDASRootCariesUI();
   }
 
   private handleToothBulkSet(tooth: FdiToothNumber, codeType: "restoration" | "caries"): void {
@@ -457,6 +482,7 @@ export class ICDASTabController implements TabController {
 
     this.refreshToothVisual(tooth);
     this.showDetailForTooth(tooth);
+    this.refreshICDASRootCariesUI();
   }
 
   private handleSurfaceCodeChange(
@@ -560,6 +586,108 @@ export class ICDASTabController implements TabController {
       if (toothStr) {
         this.refreshToothVisual(parseInt(toothStr, 10) as FdiToothNumber);
       }
+    });
+  }
+
+  // ── ICDAS Root Caries (Koreninski karies) UI ──────────────────────
+
+  private buildICDASRootCariesUI(): void {
+    if (!this.rootCariesContainer) return;
+
+    const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
+    const lowerTeeth = [...LOWER_JAW_MIRRORED];
+    const buccalSites = PROBING_BUCCAL_SITES;
+    const lingualSites = PROBING_LINGUAL_SITES;
+    const allSites = [...buccalSites, ...lingualSites];
+
+    const buildJawTable = (teeth: FdiToothNumber[], label: string): string => {
+      let html = `<div class="root-caries-jaw">`;
+      html += `<div class="root-caries-jaw-label">${label}</div>`;
+      html += `<table class="root-caries-table"><thead><tr><th>Zob</th>`;
+      for (const site of allSites) {
+        html += `<th>${PROBING_SITE_LABELS[site]}</th>`;
+      }
+      html += `</tr></thead><tbody>`;
+
+      for (const tooth of teeth) {
+        html += `<tr data-ircaries-tooth="${tooth}"><td class="root-caries-tooth-num">${tooth}</td>`;
+        for (const site of allSites) {
+          html += `<td><div class="rc-radio-group ircaries-group" data-tooth="${tooth}" data-site="${site}">`;
+          for (let v = 0; v <= 2; v++) {
+            html += `<button type="button" class="rc-radio-btn" data-value="${v}">${v}</button>`;
+          }
+          html += `</div></td>`;
+        }
+        html += `</tr>`;
+      }
+
+      html += `</tbody></table></div>`;
+      return html;
+    };
+
+    this.rootCariesContainer.innerHTML =
+      buildJawTable(upperTeeth, "Zgornja čeljust") +
+      buildJawTable(lowerTeeth, "Spodnja čeljust");
+
+    // Event delegation
+    this.rootCariesContainer.addEventListener("click", (e: Event) => {
+      const target = e.target as HTMLElement;
+      if (!target.classList.contains("rc-radio-btn")) return;
+      if (!this.session.hasSession()) return;
+
+      const group = target.parentElement as HTMLElement;
+      if (!group.classList.contains("ircaries-group")) return;
+
+      const tooth = parseInt(group.dataset.tooth || "0", 10) as FdiToothNumber;
+      const site = group.dataset.site as ProbingSite;
+      const value = parseInt(target.dataset.value || "0", 10) as ICDASRootCariesScore;
+
+      const icData = this.session.getICDASRootCaries();
+      const toothData = icData[tooth];
+      if (!toothData) return;
+
+      // Only allow input for normal teeth
+      const icdasTooth = this.session.getIcdas()[tooth];
+      if (icdasTooth.status === "special") return;
+
+      (toothData as Record<string, ICDASRootCariesScore | null>)[site] = value;
+      this.session.touch();
+
+      // Update selected state
+      group.querySelectorAll(".rc-radio-btn").forEach(btn => btn.classList.remove("selected"));
+      target.classList.add("selected");
+    });
+  }
+
+  private refreshICDASRootCariesUI(): void {
+    if (!this.rootCariesContainer || !this.session.hasSession()) return;
+
+    const icData = this.session.getICDASRootCaries();
+    const icdasData = this.session.getIcdas();
+    const allSites = [...PROBING_BUCCAL_SITES, ...PROBING_LINGUAL_SITES];
+
+    const groups = this.rootCariesContainer.querySelectorAll(".ircaries-group") as NodeListOf<HTMLElement>;
+    groups.forEach(group => {
+      const tooth = parseInt(group.dataset.tooth || "0", 10) as FdiToothNumber;
+      const site = group.dataset.site as ProbingSite;
+      const toothData = icData[tooth];
+      const currentValue = toothData ? (toothData as Record<string, number | null>)[site] : null;
+      const isNormal = icdasData[tooth].status !== "special";
+
+      group.querySelectorAll(".rc-radio-btn").forEach((btn: Element) => {
+        const btnEl = btn as HTMLButtonElement;
+        const v = parseInt(btnEl.dataset.value || "0", 10);
+        btnEl.classList.toggle("selected", currentValue === v);
+        btnEl.disabled = !isNormal;
+      });
+    });
+
+    // Dim rows for special case teeth
+    const rows = this.rootCariesContainer.querySelectorAll("tr[data-ircaries-tooth]") as NodeListOf<HTMLElement>;
+    rows.forEach(row => {
+      const tooth = parseInt(row.dataset.ircariesTooth || "0", 10) as FdiToothNumber;
+      const isNormal = icdasData[tooth].status !== "special";
+      row.classList.toggle("furc-disabled", !isNormal);
     });
   }
 }
