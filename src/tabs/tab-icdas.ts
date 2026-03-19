@@ -288,6 +288,9 @@ export class ICDASTabController implements TabController {
           <div class="bulk-set-row">
             <button class="btn btn-secondary btn-sm" id="icdas-tooth-code60-btn" style="flex:1;">60 — Popolna prevleka</button>
           </div>
+          <div class="bulk-set-row">
+            <button class="btn btn-secondary btn-sm" id="icdas-tooth-zero-btn" style="flex:1;">Brez posebnosti (0/0)</button>
+          </div>
         </div>
       `;
 
@@ -386,6 +389,11 @@ export class ICDASTabController implements TabController {
       this.detailPanel.querySelector("#icdas-tooth-code60-btn")?.addEventListener("click", () =>
         this.handleCode60(tooth)
       );
+
+      // Brez posebnosti button — sets all surfaces to 0/0
+      this.detailPanel.querySelector("#icdas-tooth-zero-btn")?.addEventListener("click", () =>
+        this.handleAllZero(tooth)
+      );
     }
 
     // Scroll detail panel into view
@@ -467,6 +475,21 @@ export class ICDASTabController implements TabController {
       td.surfaces[surface].caries = 0 as CariesCode;
     }
     // Do NOT call setToothPresence — preserves plaque/bleeding/probing data
+    this.session.touch();
+    this.refreshToothVisual(tooth);
+    this.showDetailForTooth(tooth);
+  }
+
+  private handleAllZero(tooth: FdiToothNumber): void {
+    if (!this.session.hasSession()) return;
+
+    const td = this.session.getIcdas()[tooth];
+    td.status = "normal";
+    td.specialCode = null;
+    for (const surface of ICDAS_SURFACES) {
+      td.surfaces[surface].restoration = 0 as RestorationCode;
+      td.surfaces[surface].caries = 0 as CariesCode;
+    }
     this.session.touch();
     this.refreshToothVisual(tooth);
     this.showDetailForTooth(tooth);

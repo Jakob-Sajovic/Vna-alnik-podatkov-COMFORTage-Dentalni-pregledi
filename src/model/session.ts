@@ -124,8 +124,8 @@ export function makeDefaultFurcationInvolvementData(): FurcationInvolvementData 
 
 function createDefaultICDASRootCariesTooth(): ICDASRootCariesToothData {
   return {
-    distoBuccal: null, buccal: null, mesioBuccal: null,
-    distoLingual: null, lingual: null, mesioLingual: null,
+    distoBuccal: 0, buccal: 0, mesioBuccal: 0,
+    distoLingual: 0, lingual: 0, mesioLingual: 0,
   };
 }
 
@@ -324,22 +324,19 @@ export class SessionState {
       }
     }
 
-    // Furcation involvement — reset to 0 when tooth becomes present, clear when missing
+    // Furcation involvement — null when missing, 0 when becoming present
     if (s.furcationInvolvement) {
       const fiData = s.furcationInvolvement[tooth];
       if (fiData) {
-        if (!present) {
-          for (let i = 0; i < fiData.length; i++) fiData[i] = 0;
-        }
+        for (let i = 0; i < fiData.length; i++) fiData[i] = present ? 0 : null;
       }
     }
 
-    // ICDAS root caries
+    // ICDAS root caries — null when missing/special, 0 when becoming present/normal
     if (s.icdasRootCaries && s.icdasRootCaries[tooth]) {
-      if (!present) {
-        for (const site of PROBING_ALL_SITES) {
-          (s.icdasRootCaries[tooth] as Record<string, number | null>)[site] = null;
-        }
+      const val = present ? 0 : null;
+      for (const site of PROBING_ALL_SITES) {
+        (s.icdasRootCaries[tooth] as Record<string, number | null>)[site] = val;
       }
     }
 

@@ -356,7 +356,7 @@ export class ProbingTabController implements TabController {
           <div class="probing-input-wrap">
             <label class="probing-input-label">${PROBING_SITE_LABELS[site]}</label>
             <input type="number" class="probing-input" data-site="${site}"
-                   min="0" max="25" step="0.1" value="${displayVal}"
+                   min="0" max="25" step="1" value="${displayVal}"
                    placeholder="mm" inputmode="decimal">
             <label class="bop-check-label">
               <input type="checkbox" class="bop-checkbox" data-site="${site}" ${bopChecked} ${!td.present ? "disabled" : ""}>

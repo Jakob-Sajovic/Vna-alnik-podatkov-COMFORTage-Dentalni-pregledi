@@ -85,7 +85,7 @@ export type RootCariesData = Partial<Record<FdiToothNumber, (RootCariesScore | n
 
 // Furcation involvement (Prizadetost razcepišč) — replaces root caries in probing tab
 export type FurcationScore = 0 | 1 | 2 | 3;
-export type FurcationInvolvementData = Partial<Record<FdiToothNumber, FurcationScore[]>>;
+export type FurcationInvolvementData = Partial<Record<FdiToothNumber, (FurcationScore | null)[]>>;
 
 // Bleeding on Probing (BOP) — checkbox per probing site
 export interface BOPToothData {
