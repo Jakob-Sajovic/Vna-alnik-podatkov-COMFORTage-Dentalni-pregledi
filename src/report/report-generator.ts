@@ -11,8 +11,6 @@ import {
 import {
   UPPER_RIGHT,
   UPPER_LEFT,
-  LOWER_LEFT,
-  LOWER_RIGHT,
   LOWER_JAW_MIRRORED,
   ALL_TEETH,
   RESTORATION_LABELS,
@@ -135,7 +133,7 @@ function buildPBSection(title: string, data: Record<FdiToothNumber, PBToothData>
   const pct = totalSurf > 0 ? ((activeSurf / totalSurf) * 100).toFixed(1) : "0.0";
 
   const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
-  const lowerTeeth = [...LOWER_LEFT, ...LOWER_RIGHT];
+  const lowerTeeth = [...LOWER_JAW_MIRRORED];
 
   return `
   <section class="section">
@@ -812,7 +810,7 @@ function chartX(index: number): number {
 
 function buildPBChartSvg(data: Record<FdiToothNumber, PBToothData>, activeColor: string): string {
   const upperTeeth = [...UPPER_RIGHT, ...UPPER_LEFT];
-  const lowerTeeth = [...LOWER_LEFT, ...LOWER_RIGHT];
+  const lowerTeeth = [...LOWER_JAW_MIRRORED];
   const c = CHART.cell;
   const h = c / 2;
 

@@ -1,7 +1,7 @@
 import { TabController } from "./tab-manager";
 import { SessionState } from "../model/session";
 import { FdiToothNumber, PBSurface, PBToothData } from "../model/types";
-import { UPPER_RIGHT, UPPER_LEFT, LOWER_LEFT, LOWER_RIGHT, ALL_TEETH, PB_SURFACE_TOOLTIPS } from "../model/constants";
+import { UPPER_RIGHT, UPPER_LEFT, LOWER_JAW_MIRRORED, ALL_TEETH, PB_SURFACE_TOOLTIPS } from "../model/constants";
 import { createPBToothSvg, getSurfaceForPosition, VisualPosition } from "../dental/chart-renderer";
 
 type ChartType = "plaque" | "bleeding";
@@ -96,24 +96,21 @@ export class PlaqueBleedingTabController implements TabController {
   }
 
   private buildChart(container: HTMLElement, chartType: ChartType): void {
-    // Upper jaw: Q1 (right) then Q2 (left) — 8+8 = 16 teeth
-    this.buildJaw(container, UPPER_RIGHT, UPPER_LEFT, "upper", chartType);
+    // Upper jaw: Q1 (right) then Q2 (left) — 18,17,...,11, 21,22,...,28
+    this.buildJaw(container, [...UPPER_RIGHT, ...UPPER_LEFT], "upper", chartType);
 
-    // Lower jaw: Q3 (left) then Q4 (right) — 8+8 = 16 teeth
-    this.buildJaw(container, LOWER_LEFT, LOWER_RIGHT, "lower", chartType);
+    // Lower jaw: mirrored — 48,47,...,41, 31,32,...,38
+    this.buildJaw(container, LOWER_JAW_MIRRORED, "lower", chartType);
   }
 
   private buildJaw(
     container: HTMLElement,
-    leftQuadrant: FdiToothNumber[],
-    rightQuadrant: FdiToothNumber[],
+    allTeeth: FdiToothNumber[],
     jaw: "upper" | "lower",
     chartType: ChartType
   ): void {
     const jawDiv = document.createElement("div");
     jawDiv.className = "chart-jaw";
-
-    const allTeeth = [...leftQuadrant, ...rightQuadrant];
 
     if (jaw === "upper") {
       if (chartType === "plaque") jawDiv.appendChild(this.createMissingBtnRow(allTeeth));
