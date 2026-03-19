@@ -5,6 +5,7 @@ import {
   UPPER_RIGHT,
   UPPER_LEFT,
   LOWER_JAW_MIRRORED,
+  ALL_TEETH,
   PROBING_BUCCAL_SITES,
   PROBING_LINGUAL_SITES,
   PROBING_SITE_LABELS,
@@ -461,17 +462,19 @@ export class ProbingTabController implements TabController {
   private refreshBOPSummary(): void {
     if (!this.bopSummaryEl || !this.session.hasSession()) return;
 
-    const bopData = this.session.getBop();
-    const probingData = this.session.getProbing();
+    const s = this.session.getSession();
+    if (!s.bop || !s.probing) return;
+
     let totalSites = 0;
     let bleedingSites = 0;
 
-    for (const tooth of Object.keys(probingData)) {
-      const t = parseInt(tooth, 10) as FdiToothNumber;
-      if (!probingData[t].present) continue;
+    for (const t of ALL_TEETH) {
+      if (!s.probing[t].present) continue;
+      const bopTooth = s.bop[t];
+      if (!bopTooth) continue;
       for (const site of PROBING_ALL_SITES) {
         totalSites++;
-        if ((bopData[t] as Record<string, boolean>)[site]) bleedingSites++;
+        if (bopTooth[site as keyof typeof bopTooth]) bleedingSites++;
       }
     }
 
@@ -514,9 +517,12 @@ export class ProbingTabController implements TabController {
       return html;
     };
 
+    // Lower molars mirrored to match jaw display: 48,47,46 then 36,37,38
+    const lowerMolarsMirrored: FdiToothNumber[] = [48, 47, 46, 36, 37, 38];
+
     this.furcationContainer.innerHTML =
       buildJawTable(ROOT_CARIES_UPPER_TEETH, "Zgornja čeljust") +
-      buildJawTable(ROOT_CARIES_LOWER_TEETH, "Spodnja čeljust");
+      buildJawTable(lowerMolarsMirrored, "Spodnja čeljust");
 
     // Event delegation for radio buttons
     this.furcationContainer.addEventListener("click", (e: Event) => {
