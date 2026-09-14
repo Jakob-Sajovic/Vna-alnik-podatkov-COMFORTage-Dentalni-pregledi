@@ -14,6 +14,9 @@ const PWA_SHELL_FILES = [
   "icons/icon-512.png",
 ];
 
+// New on every build, so each deploy ships a byte-different service worker.
+const PWA_BUILD_ID = new Date().toISOString().replace(/[-:T.]/g, "").slice(0, 14);
+
 const urlDev = "https://localhost:3000/";
 const urlProd = "https://jakob-sajovic.github.io/Vna-alnik-podatkov-COMFORTage-Dentalni-pregledi/";
 
@@ -135,7 +138,8 @@ module.exports = async (env, options) => {
                 .replace(
                   'self.__SHELL_FILES__ || ["./"]',
                   JSON.stringify(PWA_SHELL_FILES)
-                );
+                )
+                .replace('self.__BUILD_ID__ || "dev"', JSON.stringify(PWA_BUILD_ID));
             },
           },
         ],

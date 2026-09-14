@@ -8,7 +8,11 @@
  * between usable and useless in a clinic with bad wifi.
  */
 
-const CACHE = "dentalexam-pwa-v1";
+// Replaced at build time with the build id. A fresh value on every build is
+// what makes the browser see a byte-changed worker, re-install it, and drop
+// the previous cache — without it a redeploy would never reach installed apps.
+const BUILD = self.__BUILD_ID__ || "dev";
+const CACHE = "dentalexam-pwa-" + BUILD;
 
 // Filled in at build time with the emitted asset names.
 const SHELL = self.__SHELL_FILES__ || ["./"];
