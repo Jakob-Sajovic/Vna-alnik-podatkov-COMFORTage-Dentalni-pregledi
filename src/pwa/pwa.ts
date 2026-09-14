@@ -18,6 +18,9 @@ import { PwaStore } from "./pwa-store";
 
 const AUTOSAVE_DEBOUNCE_MS = 1500;
 
+// Injected by webpack's DefinePlugin; changes on every build.
+declare const __PWA_BUILD_ID__: string;
+
 function initApp(): void {
   const tabBar = document.getElementById("tab-bar") as HTMLElement;
   const panelContainer = document.getElementById("panel-container") as HTMLElement;
@@ -39,6 +42,9 @@ function initApp(): void {
   tabManager.registerController("ohip", new OhipTabController(session));
   tabManager.registerController("fdi", new FdiTabController(session));
   tabManager.registerController("save-report", new SaveReportTabController(session, store));
+
+  const buildEl = document.getElementById("build-id");
+  if (buildEl) buildEl.textContent = `različica ${__PWA_BUILD_ID__}`;
 
   wireAutosave(session, store);
   tabManager.switchTo("landing");
@@ -93,11 +99,52 @@ if (document.readyState === "loading") {
   initApp();
 }
 
-// Offline support. Registered after load so it never delays first paint.
-if ("serviceWorker" in navigator) {
+/**
+ * Offline support, plus telling the operator when a new build is available.
+ *
+ * Without this an installed app keeps serving the cached bundle and the only
+ * way to pick up a deploy is a double reload — easy to get wrong, and
+ * impossible to verify. The banner makes the update explicit and the build id
+ * in the status bar makes it checkable.
+ */
+function wireServiceWorker(): void {
+  if (!("serviceWorker" in navigator)) return;
+
+  const banner = document.getElementById("update-banner");
+  const reloadBtn = document.getElementById("update-reload-btn");
+  const showBanner = () => {
+    if (banner) banner.hidden = false;
+  };
+  reloadBtn?.addEventListener("click", () => window.location.reload());
+
   window.addEventListener("load", () => {
-    navigator.serviceWorker.register("sw.js").catch(() => {
-      // Offline support is a bonus; the app works without it.
-    });
+    navigator.serviceWorker
+      .register("sw.js")
+      .then((reg) => {
+        // A worker already waiting means an update landed on a previous visit.
+        if (reg.waiting && navigator.serviceWorker.controller) showBanner();
+
+        reg.addEventListener("updatefound", () => {
+          const incoming = reg.installing;
+          if (!incoming) return;
+          incoming.addEventListener("statechange", () => {
+            // "installed" with an existing controller = an update, not a first install.
+            if (incoming.state === "installed" && navigator.serviceWorker.controller) {
+              showBanner();
+            }
+          });
+        });
+
+        // Check again whenever the app is brought back to the foreground, so a
+        // deploy is noticed without having to fully restart the app.
+        document.addEventListener("visibilitychange", () => {
+          if (document.visibilityState === "visible") reg.update().catch(() => undefined);
+        });
+      })
+      .catch(() => {
+        // Offline support is a bonus; the app works without it.
+      });
   });
 }
+
+wireServiceWorker();

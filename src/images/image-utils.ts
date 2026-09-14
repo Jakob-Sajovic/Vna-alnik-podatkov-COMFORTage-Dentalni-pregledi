@@ -57,21 +57,44 @@ interface DecodedImage {
  * unavailable we fall back to the plain decode and the operator can use the
  * manual rotate button.
  */
-async function decodeOriented(file: File): Promise<DecodedImage> {
-  if (typeof createImageBitmap === "function") {
-    try {
-      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
-      return {
-        source: bitmap,
-        width: bitmap.width,
-        height: bitmap.height,
-        release: () => bitmap.close(),
-      };
-    } catch {
-      // Older WebKit rejects the options argument — fall through.
-    }
-  }
+// createImageBitmap decodes off the main thread and has been observed not to
+// settle at all on some large images. It is raced against this deadline so a
+// stalled decode degrades to the plain path instead of freezing the import.
+const BITMAP_DECODE_TIMEOUT_MS = 4000;
 
+async function decodeViaBitmap(file: File): Promise<DecodedImage | null> {
+  if (typeof createImageBitmap !== "function") return null;
+
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const deadline = new Promise<null>((resolve) => {
+    timer = setTimeout(() => resolve(null), BITMAP_DECODE_TIMEOUT_MS);
+  });
+
+  try {
+    const bitmap = await Promise.race([
+      createImageBitmap(file, { imageOrientation: "from-image" }).catch(() => null),
+      deadline,
+    ]);
+    if (!bitmap) return null;
+    return {
+      source: bitmap,
+      width: bitmap.width,
+      height: bitmap.height,
+      release: () => bitmap.close(),
+    };
+  } catch {
+    return null;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function decodeOriented(file: File): Promise<DecodedImage> {
+  const bitmap = await decodeViaBitmap(file);
+  if (bitmap) return bitmap;
+
+  // Fallback: current Chrome and Safari already apply EXIF orientation when
+  // decoding into an <img>, so this path is correct on every browser we target.
   const img = await loadImage(await readFileAsDataUrl(file));
   return {
     source: img,

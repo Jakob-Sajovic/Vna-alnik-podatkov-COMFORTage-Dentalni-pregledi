@@ -90,3 +90,44 @@
 
 .pwa-badge-ok { background: #dff6dd; color: #107c10; }
 .pwa-badge-warn { background: #fed9cc; color: #a4262c; }
+
+/* ===== Update banner ===== */
+/* An author-origin display rule beats the user-agent [hidden] rule, so the
+   hidden state has to be restated here or the banner never goes away. */
+.update-banner[hidden] { display: none; }
+
+.update-banner {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  background: #0078d4;
+  color: #fff;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.update-banner-btn {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 4px 14px;
+  border: 1px solid #fff;
+  border-radius: 4px;
+  background: transparent;
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.update-banner-btn:active { background: rgba(255, 255, 255, 0.2); }
+
+.build-id {
+  margin-right: auto;
+  color: #a19f9d;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 10px;
+}

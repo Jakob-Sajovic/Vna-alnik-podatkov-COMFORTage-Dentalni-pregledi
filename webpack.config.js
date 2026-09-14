@@ -1,5 +1,6 @@
 /* eslint-disable no-undef */
 
+const webpack = require("webpack");
 const devCerts = require("office-addin-dev-certs");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
@@ -83,6 +84,10 @@ module.exports = async (env, options) => {
       ],
     },
     plugins: [
+      // The PWA shows this so a tester can tell at a glance which build is live.
+      new webpack.DefinePlugin({
+        __PWA_BUILD_ID__: JSON.stringify(PWA_BUILD_ID),
+      }),
       new HtmlWebpackPlugin({
         filename: "taskpane.html",
         template: "./src/taskpane/taskpane.html",

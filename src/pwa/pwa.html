@@ -14,7 +14,13 @@
 </head>
 <body>
     <div id="app">
+        <div id="update-banner" class="update-banner" hidden>
+            <span>Na voljo je nova različica aplikacije.</span>
+            <button type="button" id="update-reload-btn" class="update-banner-btn">Osveži</button>
+        </div>
+
         <div class="autosave-bar">
+            <span id="build-id" class="build-id"></span>
             <span id="autosave-indicator" class="autosave-indicator"></span>
         </div>
 
