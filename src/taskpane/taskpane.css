@@ -1279,7 +1279,10 @@ tr.furc-disabled {
 
 /* ===== Radiographs (RTG) ===== */
 .rtg-actions {
-  margin-bottom: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .rtg-status {

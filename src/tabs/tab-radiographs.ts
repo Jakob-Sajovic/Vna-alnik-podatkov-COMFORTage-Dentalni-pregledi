@@ -10,7 +10,8 @@ import {
   isAcceptedImage,
   dataUrlBytes,
   formatBytes,
-  compareFileNames,
+  sortPickedFiles,
+  displayNameFor,
   shortFileName,
 } from "../images/image-utils";
 
@@ -26,6 +27,7 @@ export class RadiographsTabController implements TabController {
 
   private selectedSlot: RadiographSlotId | null = null;
   private bulkInput: HTMLInputElement | null = null;
+  private browseInput: HTMLInputElement | null = null;
   private slotInput: HTMLInputElement | null = null;
   private opinionTextarea: HTMLTextAreaElement | null = null;
   private statusEl: HTMLElement | null = null;
@@ -48,9 +50,17 @@ export class RadiographsTabController implements TabController {
 
         <div class="rtg-actions">
           <button class="btn btn-primary btn-large" id="rtg-bulk-btn">
-            <span class="btn-icon">📁</span> Izberi slike (do 10)
+            <span class="btn-icon">🖼️</span> Izberi slike iz galerije
           </button>
+          <button class="btn btn-secondary btn-large" id="rtg-browse-btn">
+            <span class="btn-icon">📁</span> Prebrskaj datoteke (z imeni)
+          </button>
+          <!-- Two inputs on purpose. An "accept" of image types sends Android
+               straight to the system photo picker, which shows thumbnails only
+               and disables search. Omitting it lets the file browser open
+               instead, where names, search and sort-by-name are available. -->
           <input type="file" id="rtg-bulk-input" accept="image/jpeg,image/png,.jpg,.jpeg,.png" multiple hidden />
+          <input type="file" id="rtg-browse-input" multiple hidden />
           <input type="file" id="rtg-slot-input" accept="image/jpeg,image/png,.jpg,.jpeg,.png" hidden />
         </div>
 
@@ -72,8 +82,10 @@ export class RadiographsTabController implements TabController {
           Posnetki so razporejeni kot pri celoustnem statusu: zgornja vrsta je zgornja čeljust,
           spodnja vrsta spodnja. Leva stran prikaza je preiskovančeva <strong>desna</strong> stran.
           Ob izbiri več datotek hkrati se te razporedijo <strong>po imenu datoteke</strong>
-          v mesta 1–10 — vrstni red izbiranja ni pomemben. Ime datoteke je izpisano
-          pod vsakim mestom, da lahko preverite razporeditev.
+          v mesta 1–10 — <strong>vrstni red izbiranja ni pomemben</strong>. Ime datoteke je
+          izpisano pod vsakim mestom, da lahko preverite razporeditev.
+          Galerija na tablici pogosto prikaže le sličice brez imen; v tem primeru
+          uporabite <em>Prebrskaj datoteke</em>, kjer so vidna imena in iskanje.
           Tapnite posamezno mesto za zamenjavo, vrtenje ali opis.
           Slike se ob shranjevanju stisnejo in zapišejo na ločen list <code>DentalExam_Slike</code>.
         </p>
@@ -81,6 +93,7 @@ export class RadiographsTabController implements TabController {
     `;
 
     this.bulkInput = panel.querySelector("#rtg-bulk-input") as HTMLInputElement;
+    this.browseInput = panel.querySelector("#rtg-browse-input") as HTMLInputElement;
     this.slotInput = panel.querySelector("#rtg-slot-input") as HTMLInputElement;
     this.opinionTextarea = panel.querySelector("#rtg-opinion") as HTMLTextAreaElement;
     this.statusEl = panel.querySelector("#rtg-status") as HTMLElement;
@@ -96,8 +109,22 @@ export class RadiographsTabController implements TabController {
       }
     });
 
+    const browseBtn = panel.querySelector("#rtg-browse-btn") as HTMLButtonElement;
+    browseBtn.addEventListener("click", () => {
+      if (!this.requireSession()) return;
+      if (this.browseInput) {
+        this.browseInput.value = "";
+        this.browseInput.click();
+      }
+    });
+
     this.bulkInput.addEventListener("change", () => {
       const files = this.bulkInput?.files;
+      if (files && files.length) void this.handleBulkFiles(Array.from(files));
+    });
+
+    this.browseInput.addEventListener("change", () => {
+      const files = this.browseInput?.files;
       if (files && files.length) void this.handleBulkFiles(Array.from(files));
     });
 
@@ -293,8 +320,9 @@ export class RadiographsTabController implements TabController {
     if (this.busy || !this.requireSession()) return;
     this.busy = true;
 
-    const accepted = files.filter(isAcceptedImage).sort((a, b) => compareFileNames(a.name, b.name));
-    const rejected = files.length - accepted.length;
+    const picked = files.filter(isAcceptedImage);
+    const rejected = files.length - picked.length;
+    const { files: accepted, basis } = sortPickedFiles(picked);
 
     if (accepted.length === 0) {
       this.setStatus("Nobena izbrana datoteka ni JPEG ali PNG.", "error");
@@ -314,7 +342,7 @@ export class RadiographsTabController implements TabController {
         const processed = await processImageFile(file);
         rg.images[slot.id] = {
           dataUrl: processed.dataUrl,
-          fileName: file.name,
+          fileName: displayNameFor(file),
           width: processed.width,
           height: processed.height,
           caption: rg.images[slot.id]?.caption || "",
@@ -334,6 +362,9 @@ export class RadiographsTabController implements TabController {
     this.busy = false;
 
     const notes: string[] = [];
+    if (basis === "time" && usable.length > 1) {
+      notes.push("razvrščeno po času posnetka (imena datotek niso uporabna)");
+    }
     if (rejected > 0) notes.push(`${rejected} datotek ni v formatu JPEG/PNG`);
     if (accepted.length > RADIOGRAPH_SLOTS.length) {
       notes.push(`upoštevanih prvih ${RADIOGRAPH_SLOTS.length} od ${accepted.length}`);
@@ -360,7 +391,7 @@ export class RadiographsTabController implements TabController {
       const rg = this.session.getRadiographs();
       rg.images[slotId] = {
         dataUrl: processed.dataUrl,
-        fileName: file.name,
+        fileName: displayNameFor(file),
         width: processed.width,
         height: processed.height,
         caption: rg.images[slotId]?.caption || "",

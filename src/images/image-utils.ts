@@ -180,3 +180,40 @@ export function formatBytes(bytes: number): string {
 export function compareFileNames(a: string, b: string): number {
   return a.localeCompare(b, "sl", { numeric: true, sensitivity: "base" });
 }
+
+/**
+ * Some Android gallery pickers hand back files with no usable name, or the
+ * same name for every item. File-name ordering is meaningless then, so fall
+ * back to capture time — shooting the mount in sequence is the natural
+ * workflow, which makes that the right order anyway.
+ */
+export type SortBasis = "name" | "time";
+
+export function sortPickedFiles(files: File[]): { files: File[]; basis: SortBasis } {
+  const names = files.map((f) => (f.name || "").trim());
+  const allNamed = names.every((n) => n.length > 0);
+  const allDistinct = new Set(names).size === names.length;
+
+  if (allNamed && allDistinct) {
+    return {
+      files: [...files].sort((a, b) => compareFileNames(a.name, b.name)),
+      basis: "name",
+    };
+  }
+  return {
+    files: [...files].sort((a, b) => (a.lastModified || 0) - (b.lastModified || 0)),
+    basis: "time",
+  };
+}
+
+/**
+ * A name to show and store for a picked file. When the picker supplies none,
+ * the capture time stands in — it is what distinguishes the films.
+ */
+export function displayNameFor(file: File): string {
+  const name = (file.name || "").trim();
+  if (name) return name;
+  const t = file.lastModified ? new Date(file.lastModified) : new Date();
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `slika_${pad(t.getHours())}-${pad(t.getMinutes())}-${pad(t.getSeconds())}.jpg`;
+}
