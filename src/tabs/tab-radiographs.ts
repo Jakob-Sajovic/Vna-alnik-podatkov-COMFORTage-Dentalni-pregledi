@@ -11,6 +11,7 @@ import {
   dataUrlBytes,
   formatBytes,
   compareFileNames,
+  shortFileName,
 } from "../images/image-utils";
 
 function esc(str: string): string {
@@ -70,7 +71,9 @@ export class RadiographsTabController implements TabController {
         <p class="tab-help-footer">
           Posnetki so razporejeni kot pri celoustnem statusu: zgornja vrsta je zgornja čeljust,
           spodnja vrsta spodnja. Leva stran prikaza je preiskovančeva <strong>desna</strong> stran.
-          Ob izbiri več datotek hkrati se te razporedijo po imenu v mesta 1–10.
+          Ob izbiri več datotek hkrati se te razporedijo <strong>po imenu datoteke</strong>
+          v mesta 1–10 — vrstni red izbiranja ni pomemben. Ime datoteke je izpisano
+          pod vsakim mestom, da lahko preverite razporeditev.
           Tapnite posamezno mesto za zamenjavo, vrtenje ali opis.
           Slike se ob shranjevanju stisnejo in zapišejo na ločen list <code>DentalExam_Slike</code>.
         </p>
@@ -149,12 +152,20 @@ export class RadiographsTabController implements TabController {
         const body = img
           ? `<img class="rtg-thumb" src="${img.dataUrl}" alt="${esc(slot.region)}" />`
           : `<span class="rtg-slot-placeholder">＋</span>`;
+        // The file name is shown so the operator can check at a glance that the
+        // films landed in the intended slots — phone galleries show only
+        // thumbnails when picking, so mistakes are easy to make and hard to spot.
+        const fileTag = img
+          ? `<span class="rtg-slot-file" title="${esc(img.fileName)}">${esc(shortFileName(img.fileName))}</span>`
+          : "";
+        const tip = img ? `${slot.region} — ${img.fileName}` : slot.region;
         return `
           <button type="button" class="rtg-slot${filled}${selected}" data-slot="${slot.id}"
-                  title="${esc(slot.region)}">
+                  title="${esc(tip)}">
             <span class="rtg-slot-num">${slot.order}</span>
             <span class="rtg-slot-img">${body}</span>
             <span class="rtg-slot-label">${esc(slot.label)}</span>
+            ${fileTag}
           </button>`;
       }).join("");
       return `<div class="rtg-mount-row">${cells}</div>`;

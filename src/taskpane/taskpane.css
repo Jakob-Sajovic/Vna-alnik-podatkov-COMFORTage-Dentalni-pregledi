@@ -1338,7 +1338,7 @@ tr.furc-disabled {
   align-items: center;
   gap: 3px;
   padding: 4px 2px;
-  min-height: 96px;
+  min-height: 110px;
   background: #fff;
   border: 1px solid #c8c6c4;
   border-radius: 4px;
@@ -1480,3 +1480,14 @@ tr.furc-disabled {
 .rtg-detail-actions .btn:disabled { opacity: 0.45; cursor: default; }
 
 .rtg-opinion-group { margin-top: 4px; }
+
+.rtg-slot-file {
+  font-size: 8px;
+  line-height: 1.15;
+  color: #0078d4;
+  font-family: Consolas, "Courier New", monospace;
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  word-break: break-all;
+}

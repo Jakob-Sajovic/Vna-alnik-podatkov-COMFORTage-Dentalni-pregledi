@@ -1,4 +1,4 @@
-/* global document, FileReader, Image, HTMLCanvasElement */
+/* global document, FileReader, Image, HTMLCanvasElement, ImageBitmap, createImageBitmap */
 
 import { RADIOGRAPH_MAX_DIMENSION, RADIOGRAPH_JPEG_QUALITY } from "../model/constants";
 
@@ -40,27 +40,84 @@ function toJpeg(canvas: HTMLCanvasElement): string {
   return canvas.toDataURL("image/jpeg", RADIOGRAPH_JPEG_QUALITY);
 }
 
+interface DecodedImage {
+  source: CanvasImageSource;
+  width: number;
+  height: number;
+  release: () => void;
+}
+
+/**
+ * Decode a picked file with its EXIF orientation already applied.
+ *
+ * Phone cameras record orientation as an EXIF flag rather than rotating the
+ * pixels. Drawing such a file straight onto a canvas ignores that flag, which
+ * is why photos taken on a tablet or phone came out sideways. createImageBitmap
+ * with imageOrientation "from-image" bakes the rotation in; where it is
+ * unavailable we fall back to the plain decode and the operator can use the
+ * manual rotate button.
+ */
+async function decodeOriented(file: File): Promise<DecodedImage> {
+  if (typeof createImageBitmap === "function") {
+    try {
+      const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+      return {
+        source: bitmap,
+        width: bitmap.width,
+        height: bitmap.height,
+        release: () => bitmap.close(),
+      };
+    } catch {
+      // Older WebKit rejects the options argument — fall through.
+    }
+  }
+
+  const img = await loadImage(await readFileAsDataUrl(file));
+  return {
+    source: img,
+    width: img.naturalWidth,
+    height: img.naturalHeight,
+    release: () => undefined,
+  };
+}
+
 /**
  * Downscale to RADIOGRAPH_MAX_DIMENSION on the longest edge and re-encode as
  * JPEG, so that ten films stay small enough to round-trip through Excel cells.
  */
 export async function processImageFile(file: File): Promise<ProcessedImage> {
-  const rawDataUrl = await readFileAsDataUrl(file);
-  const img = await loadImage(rawDataUrl);
+  const decoded = await decodeOriented(file);
+  try {
+    const longest = Math.max(decoded.width, decoded.height);
+    const scale = longest > RADIOGRAPH_MAX_DIMENSION ? RADIOGRAPH_MAX_DIMENSION / longest : 1;
+    const width = Math.max(1, Math.round(decoded.width * scale));
+    const height = Math.max(1, Math.round(decoded.height * scale));
 
-  const longest = Math.max(img.naturalWidth, img.naturalHeight);
-  const scale = longest > RADIOGRAPH_MAX_DIMENSION ? RADIOGRAPH_MAX_DIMENSION / longest : 1;
-  const width = Math.max(1, Math.round(img.naturalWidth * scale));
-  const height = Math.max(1, Math.round(img.naturalHeight * scale));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) throw new Error("Brskalnik ne podpira obdelave slik (canvas).");
+    ctx.drawImage(decoded.source, 0, 0, width, height);
 
-  const canvas = document.createElement("canvas");
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Brskalnik ne podpira obdelave slik (canvas).");
-  ctx.drawImage(img, 0, 0, width, height);
+    return { dataUrl: toJpeg(canvas), width, height };
+  } finally {
+    // Ten full-resolution phone photos are a lot of memory to hold on a tablet.
+    decoded.release();
+  }
+}
 
-  return { dataUrl: toJpeg(canvas), width, height };
+/**
+ * Shorten a file name for the cramped slot label, keeping both ends: the head
+ * carries any ordering prefix ("01_...") and the tail distinguishes camera
+ * names that differ only in their final digits ("IMG_20260914_101523").
+ */
+export function shortFileName(name: string, max = 16): string {
+  const base = name.replace(/\.[^.]+$/, "");
+  if (base.length <= max) return base;
+  const head = Math.ceil((max - 1) / 2);
+  const tail = Math.floor((max - 1) / 2);
+  return `${base.slice(0, head)}…${base.slice(-tail)}`;
 }
 
 /** Rotate a data URL by a quarter turn, baking the rotation into the pixels. */
