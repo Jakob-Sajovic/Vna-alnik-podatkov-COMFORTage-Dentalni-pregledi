@@ -24,11 +24,12 @@
     "stop": "office-addin-debugging stop manifest.xml",
     "validate": "office-addin-manifest validate manifest.xml",
     "watch": "webpack --mode development --watch",
-    "deploy": "npm run build && npx gh-pages -d dist"
+    "deploy": "npm run build && node node_modules/gh-pages/bin/gh-pages.js -d dist"
   },
   "dependencies": {
     "core-js": "^3.36.0",
-    "regenerator-runtime": "^0.14.1"
+    "regenerator-runtime": "^0.14.1",
+    "xlsx": "^0.18.5"
   },
   "devDependencies": {
     "@babel/core": "^7.24.0",

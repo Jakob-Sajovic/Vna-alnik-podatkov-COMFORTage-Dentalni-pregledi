@@ -2,7 +2,8 @@ import { TabController } from "./tab-manager";
 import { SessionState } from "../model/session";
 import { FdiToothNumber, PBSurface, PBToothData, ICDASData, ExaminationSession } from "../model/types";
 import { ALL_TEETH, PROBING_ALL_SITES } from "../model/constants";
-import { saveSessionToExcel } from "../excel/excel-io";
+import { SessionStore } from "../storage/session-store";
+import { ExcelStore } from "../storage/excel-store";
 import { generateReport } from "../report/report-generator";
 
 export class SaveReportTabController implements TabController {
@@ -12,9 +13,11 @@ export class SaveReportTabController implements TabController {
   private saveBtn: HTMLButtonElement | null = null;
   private reportBtn: HTMLButtonElement | null = null;
   private statusMsg: HTMLElement | null = null;
+  private store: SessionStore;
 
-  constructor(session: SessionState) {
+  constructor(session: SessionState, store?: SessionStore) {
     this.session = session;
+    this.store = store || new ExcelStore();
   }
 
   init(panel: HTMLElement): void {
@@ -26,17 +29,15 @@ export class SaveReportTabController implements TabController {
         <div id="save-status" class="form-hint" style="text-align:center; margin:8px 0; min-height:18px;"></div>
         <div style="display:flex; flex-direction:column; gap:12px; margin-top:12px;">
           <button id="btn-save-excel" class="btn btn-primary btn-large">
-            <span class="btn-icon">💾</span>
-            Shrani v Excel
+            <span class="btn-icon">${this.store.saveAction.icon}</span>
+            ${this.store.saveAction.label}
           </button>
           <button id="btn-generate-pdf" class="btn btn-secondary btn-large">
             <span class="btn-icon">📄</span>
             Ustvari PDF
           </button>
         </div>
-        <p class="tab-help-footer">
-          Preglejte povzetek pregleda. Shranite podatke v Excel ali ustvarite PDF poročilo.
-        </p>
+        <p class="tab-help-footer">${this.store.saveHelp}</p>
       </div>
     `;
 
@@ -82,9 +83,9 @@ export class SaveReportTabController implements TabController {
     }
 
     try {
-      await saveSessionToExcel(this.session.getSession());
+      const message = await this.store.save(this.session.getSession());
       if (this.statusMsg) {
-        this.statusMsg.textContent = "Podatki uspešno shranjeni v Excel.";
+        this.statusMsg.textContent = message;
         this.statusMsg.style.color = "#0b6a0b";
       }
     } catch (err) {

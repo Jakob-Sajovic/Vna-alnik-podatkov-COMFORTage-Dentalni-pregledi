@@ -4,6 +4,16 @@ const devCerts = require("office-addin-dev-certs");
 const CopyWebpackPlugin = require("copy-webpack-plugin");
 const HtmlWebpackPlugin = require("html-webpack-plugin");
 
+// Files the PWA service worker pre-caches so the app starts offline.
+const PWA_SHELL_FILES = [
+  "./",
+  "index.html",
+  "pwa.js",
+  "manifest.webmanifest",
+  "icons/icon-192.png",
+  "icons/icon-512.png",
+];
+
 const urlDev = "https://localhost:3000/";
 const urlProd = "https://jakob-sajovic.github.io/Vna-alnik-podatkov-COMFORTage-Dentalni-pregledi/";
 
@@ -20,9 +30,14 @@ module.exports = async (env, options) => {
       polyfill: ["core-js/stable", "regenerator-runtime/runtime"],
       taskpane: ["./src/taskpane/taskpane.ts", "./src/taskpane/taskpane.html"],
       commands: "./src/commands/commands.ts",
+      // Polyfills are bundled into the PWA chunk rather than shared: a service
+      // worker registered at pwa/ can only intercept requests under pwa/, so
+      // every file the app needs offline has to live inside that folder.
+      pwa: ["core-js/stable", "regenerator-runtime/runtime", "./src/pwa/pwa.ts", "./src/pwa/pwa.html"],
     },
     output: {
       clean: true,
+      filename: (pathData) => (pathData.chunk.name === "pwa" ? "pwa/[name].js" : "[name].js"),
     },
     resolve: {
       extensions: [".ts", ".html", ".js"],
@@ -43,7 +58,17 @@ module.exports = async (env, options) => {
         {
           test: /\.html$/,
           exclude: /node_modules/,
-          use: "html-loader",
+          use: {
+            loader: "html-loader",
+            options: {
+              sources: {
+                // The PWA manifest and icons are emitted by CopyWebpackPlugin,
+                // so html-loader must leave those references alone.
+                urlFilter: (attribute, value) =>
+                  !value.startsWith("manifest.webmanifest") && !value.startsWith("icons/"),
+              },
+            },
+          },
         },
         {
           test: /\.(png|jpg|jpeg|gif|ico)$/,
@@ -87,6 +112,33 @@ module.exports = async (env, options) => {
         filename: "commands.html",
         template: "./src/commands/commands.html",
         chunks: ["polyfill", "commands"],
+      }),
+      new HtmlWebpackPlugin({
+        filename: "pwa/index.html",
+        template: "./src/pwa/pwa.html",
+        chunks: ["pwa"],
+      }),
+      new CopyWebpackPlugin({
+        patterns: [
+          {
+            from: "src/pwa/static",
+            to: "pwa",
+            globOptions: { ignore: ["**/sw.js"] },
+          },
+          {
+            from: "src/pwa/static/sw.js",
+            to: "pwa/sw.js",
+            transform(content) {
+              // Bake the shell file list into the worker so it can pre-cache.
+              return content
+                .toString()
+                .replace(
+                  'self.__SHELL_FILES__ || ["./"]',
+                  JSON.stringify(PWA_SHELL_FILES)
+                );
+            },
+          },
+        ],
       }),
     ],
     devServer: {

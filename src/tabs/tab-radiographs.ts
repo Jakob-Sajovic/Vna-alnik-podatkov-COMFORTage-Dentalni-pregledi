@@ -311,6 +311,10 @@ export class RadiographsTabController implements TabController {
       } catch {
         failed++;
       }
+      // Paint each film as it lands: a full mount takes a few seconds on a
+      // tablet, and a mount that stays empty until the end reads as a hang.
+      this.renderMount();
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
 
     this.session.touch();

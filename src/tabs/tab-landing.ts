@@ -1,14 +1,17 @@
 import { TabController, TabManager } from "./tab-manager";
 import { SessionState } from "../model/session";
-import { loadSessionFromExcel, loadSessionFromFile } from "../excel/excel-io";
+import { SessionStore } from "../storage/session-store";
+import { ExcelStore } from "../storage/excel-store";
 
 export class LandingTabController implements TabController {
   private panel: HTMLElement | null = null;
   private session: SessionState;
   private tabManager: TabManager | null = null;
+  private store: SessionStore;
 
-  constructor(session: SessionState) {
+  constructor(session: SessionState, store?: SessionStore) {
     this.session = session;
+    this.store = store || new ExcelStore();
   }
 
   setTabManager(tabManager: TabManager): void {
@@ -26,10 +29,11 @@ export class LandingTabController implements TabController {
             <span class="btn-icon">➕</span>
             Nov pregled
           </button>
+          ${this.store.hostLoadAction ? `
           <button id="btn-load-session" class="btn btn-secondary btn-large">
-            <span class="btn-icon">📂</span>
-            Naloži iz zvezka
-          </button>
+            <span class="btn-icon">${this.store.hostLoadAction.icon}</span>
+            ${this.store.hostLoadAction.label}
+          </button>` : ""}
           <button id="btn-import-file" class="btn btn-secondary btn-large">
             <span class="btn-icon">📁</span>
             Uvozi iz datoteke
@@ -44,12 +48,12 @@ export class LandingTabController implements TabController {
     `;
 
     const btnNew = panel.querySelector("#btn-new-session") as HTMLButtonElement;
-    const btnLoad = panel.querySelector("#btn-load-session") as HTMLButtonElement;
+    const btnLoad = panel.querySelector("#btn-load-session") as HTMLButtonElement | null;
     const btnImport = panel.querySelector("#btn-import-file") as HTMLButtonElement;
     const fileInput = panel.querySelector("#file-import-input") as HTMLInputElement;
 
     btnNew.addEventListener("click", () => this.handleNewSession());
-    btnLoad.addEventListener("click", () => this.handleLoadSession());
+    if (btnLoad) btnLoad.addEventListener("click", () => this.handleLoadSession());
     btnImport.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", () => this.handleFileImport(fileInput));
   }
@@ -79,7 +83,7 @@ export class LandingTabController implements TabController {
     }
 
     try {
-      const data = await loadSessionFromExcel();
+      const data = await this.store.loadFromHost();
       if (data) {
         this.session.loadSession(data);
         this.updateStatus();
@@ -112,8 +116,7 @@ export class LandingTabController implements TabController {
     }
 
     try {
-      const base64 = await this.readFileAsBase64(file);
-      const data = await loadSessionFromFile(base64);
+      const data = await this.store.loadFromFile(file);
       if (data) {
         this.session.loadSession(data);
         this.updateStatus();
@@ -130,20 +133,6 @@ export class LandingTabController implements TabController {
         status.textContent = `Napaka pri uvozu: ${err instanceof Error ? err.message : String(err)}`;
       }
     }
-  }
-
-  private readFileAsBase64(file: File): Promise<string> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        // Remove the data URL prefix (e.g. "data:application/...;base64,")
-        const base64 = result.split(",")[1];
-        resolve(base64);
-      };
-      reader.onerror = () => reject(new Error("Napaka pri branju datoteke."));
-      reader.readAsDataURL(file);
-    });
   }
 
   private updateStatus(): void {
