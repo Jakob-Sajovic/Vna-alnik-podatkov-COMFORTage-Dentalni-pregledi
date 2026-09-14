@@ -21,6 +21,7 @@ import {
   PatientData,
   OhipData,
   NotesData,
+  RadiographData,
 } from "./types";
 import { ALL_TEETH, SCHEMA_VERSION, ROOT_CARIES_ALL_TEETH, PROBING_ALL_SITES, rootCariesEntryCount } from "./constants";
 
@@ -161,6 +162,14 @@ export function makeDefaultFdiQuestionnaire(): FdiQuestionnaireData {
   return createDefaultFdiQuestionnaire();
 }
 
+function createDefaultRadiographs(): RadiographData {
+  return { images: {}, opinion: "" };
+}
+
+export function makeDefaultRadiographs(): RadiographData {
+  return createDefaultRadiographs();
+}
+
 function createBlankSession(): ExaminationSession {
   const now = new Date().toISOString();
   return {
@@ -179,6 +188,7 @@ function createBlankSession(): ExaminationSession {
     furcationInvolvement: createDefaultFurcationInvolvementData(),
     icdasRootCaries: createDefaultICDASRootCariesData(),
     notes: { diagnosticNotes: "", qualitativeNotes: "" },
+    radiographs: createDefaultRadiographs(),
     ohip: new Array(49).fill(null) as OhipData,
     fdiQuestionnaire: createDefaultFdiQuestionnaire(),
   };
@@ -274,6 +284,12 @@ export class SessionState {
 
   getNotes(): NotesData {
     return this.getSession().notes;
+  }
+
+  getRadiographs(): RadiographData {
+    const s = this.getSession();
+    if (!s.radiographs) s.radiographs = createDefaultRadiographs();
+    return s.radiographs;
   }
 
   getOhip(): OhipData {

@@ -8,6 +8,7 @@ import { PatientTabController } from "../tabs/tab-patient";
 import { PlaqueBleedingTabController } from "../tabs/tab-plaque-bleeding";
 import { ICDASTabController } from "../tabs/tab-icdas";
 import { ProbingTabController } from "../tabs/tab-probing";
+import { RadiographsTabController } from "../tabs/tab-radiographs";
 import { NotesTabController } from "../tabs/tab-notes";
 import { OhipTabController } from "../tabs/tab-ohip";
 import { FdiTabController } from "../tabs/tab-fdi";
@@ -32,6 +33,7 @@ function initApp() {
   const plaqueBleedingCtrl = new PlaqueBleedingTabController(session);
   const icdasCtrl = new ICDASTabController(session);
   const probingCtrl = new ProbingTabController(session);
+  const radiographsCtrl = new RadiographsTabController(session);
   const notesCtrl = new NotesTabController(session);
   const ohipCtrl = new OhipTabController(session);
   const fdiCtrl = new FdiTabController(session);
@@ -43,6 +45,7 @@ function initApp() {
   tabManager.registerController("plaque-bleeding", plaqueBleedingCtrl);
   tabManager.registerController("icdas", icdasCtrl);
   tabManager.registerController("probing", probingCtrl);
+  tabManager.registerController("radiographs", radiographsCtrl);
   tabManager.registerController("notes", notesCtrl);
   tabManager.registerController("ohip", ohipCtrl);
   tabManager.registerController("fdi", fdiCtrl);

@@ -28,6 +28,8 @@ import {
   ROOT_CARIES_UPPER_TEETH,
   ROOT_CARIES_LOWER_TEETH,
   rootCariesLabels,
+  radiographSlotsByRow,
+  RADIOGRAPH_SLOTS,
 } from "../model/constants";
 import {
   getSurfaceForPosition,
@@ -99,6 +101,7 @@ ${REPORT_CSS}
   ${buildBOPSection(s)}
   ${buildFurcationSection(s)}
   ${buildNotesSection(s)}
+  ${buildRadiographSection(s)}
   ${buildOhipSection(s)}
   ${buildFdiSection(s)}
 
@@ -112,6 +115,65 @@ ${REPORT_CSS}
 <script>window.onload = function() { window.print(); }<\/script>
 </body>
 </html>`;
+}
+
+
+// ── Radiographs ───────────────────────────────────────────────────
+
+function buildRadiographSection(s: ExaminationSession): string {
+  const radio = s.radiographs;
+  if (!radio) return "";
+
+  const withImage = RADIOGRAPH_SLOTS.filter((slot) => {
+    const img = radio.images[slot.id];
+    return !!(img && img.dataUrl);
+  });
+
+  // Nothing to show at all — skip the page entirely rather than print a blank.
+  if (withImage.length === 0 && !(radio.opinion || "").trim()) return "";
+
+  const renderRow = (row: "top" | "bottom") => {
+    const cells = radiographSlotsByRow(row).map((slot) => {
+      const img = radio.images[slot.id];
+      const body = img && img.dataUrl
+        ? `<img src="${img.dataUrl}" alt="${esc(slot.region)}" />`
+        : `<div class="rtg-r-missing">ni posnetka</div>`;
+      const caption = img && img.caption ? `<div class="rtg-r-caption">${esc(img.caption)}</div>` : "";
+      return `
+        <div class="rtg-r-cell">
+          <div class="rtg-r-frame">${body}</div>
+          <div class="rtg-r-label"><strong>${slot.order}.</strong> ${esc(slot.label)}</div>
+          ${caption}
+        </div>`;
+    }).join("");
+    return `<div class="rtg-r-row">${cells}</div>`;
+  };
+
+  const captionList = withImage
+    .filter((slot) => (radio.images[slot.id]?.caption || "").trim())
+    .map((slot) => `<li><strong>${slot.order}. ${esc(slot.region)}:</strong> ${esc(radio.images[slot.id]!.caption)}</li>`)
+    .join("");
+
+  return `
+  <section class="section page-break">
+    <h2>Rentgenske slike</h2>
+    <div class="rtg-r-meta">Posnetih mest: ${withImage.length} / ${RADIOGRAPH_SLOTS.length}</div>
+
+    <div class="rtg-r-mount">
+      <div class="rtg-r-jaw">Zgornja čeljust</div>
+      ${renderRow("top")}
+      ${renderRow("bottom")}
+      <div class="rtg-r-jaw">Spodnja čeljust</div>
+      <div class="rtg-r-sides"><span>preiskovančeva DESNA</span><span>preiskovančeva LEVA</span></div>
+    </div>
+
+    ${captionList ? `<div class="rtg-r-captions"><h3>Opisi posameznih posnetkov</h3><ul>${captionList}</ul></div>` : ""}
+
+    <div class="rtg-r-opinion">
+      <h3>Rentgenska diagnoza / mnenje</h3>
+      <div class="notes-content">${esc((radio.opinion || "").trim() || "—")}</div>
+    </div>
+  </section>`;
 }
 
 // ── VPI / GBI section ─────────────────────────────────────────────
@@ -1039,6 +1101,28 @@ th { background: #f0f0f0; font-weight: 600; }
 .probing-report-chart { text-align: center; margin: 4px 0; }
 .probing-report-chart svg { display: inline-block; }
 .page-break { page-break-before: auto; }
+
+/* ── Radiograph mount ── */
+.rtg-r-meta { font-size: 10pt; color: #555; margin-bottom: 8px; }
+.rtg-r-mount { border: 1px solid #ccc; border-radius: 4px; padding: 10px; background: #fafafa; }
+.rtg-r-jaw { font-size: 9pt; font-weight: 700; color: #666; text-transform: uppercase;
+  letter-spacing: 0.5px; text-align: center; margin: 2px 0 6px; }
+.rtg-r-row + .rtg-r-jaw { margin-top: 10px; }
+.rtg-r-row { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; margin-bottom: 6px; }
+.rtg-r-cell { display: flex; flex-direction: column; align-items: center; }
+.rtg-r-frame { width: 100%; height: 130px; background: #000; border: 1px solid #999;
+  display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.rtg-r-frame img { max-width: 100%; max-height: 100%; object-fit: contain; display: block; }
+.rtg-r-missing { color: #888; font-size: 8pt; font-style: italic; }
+.rtg-r-label { font-size: 8pt; color: #333; text-align: center; margin-top: 3px; line-height: 1.2; }
+.rtg-r-caption { font-size: 7.5pt; color: #555; text-align: center; margin-top: 2px; line-height: 1.2; }
+.rtg-r-sides { display: flex; justify-content: space-between; font-size: 8pt;
+  color: #777; margin-top: 4px; padding: 0 2px; }
+.rtg-r-captions { margin-top: 14px; }
+.rtg-r-captions h3, .rtg-r-opinion h3 { font-size: 11pt; margin: 0 0 6px; color: #222; }
+.rtg-r-captions ul { margin: 0 0 0 18px; font-size: 10pt; line-height: 1.5; }
+.rtg-r-opinion { margin-top: 14px; }
+
 @media print {
   body { padding: 0; }
   .page-break { page-break-before: always; }

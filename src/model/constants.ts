@@ -1,4 +1,4 @@
-import { FdiToothNumber, SpecialCaseCode, ProbingSite } from "./types";
+import { FdiToothNumber, SpecialCaseCode, ProbingSite, RadiographSlotId } from "./types";
 
 // Schema version for data persistence
 export const SCHEMA_VERSION = 2;
@@ -98,6 +98,7 @@ export const TABS: TabDefinition[] = [
   { id: "plaque-bleeding", label: "VPI/GBI", icon: "🦷" },
   { id: "icdas", label: "ICDAS", icon: "🔍" },
   { id: "probing", label: "Globine", icon: "📏" },
+  { id: "radiographs", label: "RTG", icon: "🩻" },
   { id: "notes", label: "Opombe", icon: "📝" },
   { id: "ohip", label: "OHIP", icon: "📋" },
   { id: "fdi", label: "FDI", icon: "📊" },
@@ -207,3 +208,40 @@ export function rootCariesLabels(tooth: FdiToothNumber): string[] {
   if (ROOT_CARIES_LOWER_TEETH.includes(tooth)) return ROOT_CARIES_LOWER_LABELS;
   return [];
 }
+
+// ── Radiograph mount (full-mouth periapical, 10 films) ────────────
+// Layout mirrors the reference mount: 2 rows x 5 columns, viewer's left =
+// patient's right. `slika` records the figure numbers used in the original
+// quadrant-by-quadrant reference deck (two films are shared between quadrants).
+export interface RadiographSlotDef {
+  id: RadiographSlotId;
+  order: number;     // 1-10, the order bulk-selected files are assigned in
+  row: "top" | "bottom";
+  label: string;     // short label shown inside the slot
+  region: string;    // full Slovenian description
+  quadrant: string;  // quadrant(s) the film covers
+  slika: string;     // figure number(s) in the reference deck
+}
+
+export const RADIOGRAPH_SLOTS: RadiographSlotDef[] = [
+  { id: "T1", order: 1, row: "top", label: "Zg. D kočniki", region: "Zgoraj desno – kočniki", quadrant: "I", slika: "1" },
+  { id: "T2", order: 2, row: "top", label: "Zg. D ličniki", region: "Zgoraj desno – ličniki in podočnik", quadrant: "I", slika: "2" },
+  { id: "T3", order: 3, row: "top", label: "Zg. sekalci", region: "Zgoraj – sekalci", quadrant: "I / II", slika: "3 = 4" },
+  { id: "T4", order: 4, row: "top", label: "Zg. L ličniki", region: "Zgoraj levo – ličniki in podočnik", quadrant: "II", slika: "5" },
+  { id: "T5", order: 5, row: "top", label: "Zg. L kočniki", region: "Zgoraj levo – kočniki", quadrant: "II", slika: "6" },
+  { id: "B1", order: 6, row: "bottom", label: "Sp. D kočniki", region: "Spodaj desno – kočniki", quadrant: "IV", slika: "10" },
+  { id: "B2", order: 7, row: "bottom", label: "Sp. D ličniki", region: "Spodaj desno – ličniki in podočnik", quadrant: "IV", slika: "11" },
+  { id: "B3", order: 8, row: "bottom", label: "Sp. sekalci", region: "Spodaj – sekalci", quadrant: "III / IV", slika: "7 = 12" },
+  { id: "B4", order: 9, row: "bottom", label: "Sp. L ličniki", region: "Spodaj levo – ličniki in podočnik", quadrant: "III", slika: "8" },
+  { id: "B5", order: 10, row: "bottom", label: "Sp. L kočniki", region: "Spodaj levo – kočniki", quadrant: "III", slika: "9" },
+];
+
+export const RADIOGRAPH_SLOT_IDS: RadiographSlotId[] = RADIOGRAPH_SLOTS.map((s) => s.id);
+
+export function radiographSlotsByRow(row: "top" | "bottom"): RadiographSlotDef[] {
+  return RADIOGRAPH_SLOTS.filter((s) => s.row === row);
+}
+
+// Client-side compression applied before an image enters the session.
+export const RADIOGRAPH_MAX_DIMENSION = 1400; // px on the longest edge
+export const RADIOGRAPH_JPEG_QUALITY = 0.82;

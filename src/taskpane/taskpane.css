@@ -1276,3 +1276,207 @@ tr.furc-disabled {
     height: 48px;
   }
 }
+
+/* ===== Radiographs (RTG) ===== */
+.rtg-actions {
+  margin-bottom: 8px;
+}
+
+.rtg-status {
+  font-size: 12px;
+  padding: 8px 10px;
+  border-radius: 4px;
+  margin-bottom: 12px;
+  border: 1px solid transparent;
+}
+
+.rtg-status-info  { background: #f3f2f1; color: #605e5c; border-color: #e1dfdd; }
+.rtg-status-ok    { background: #dff6dd; color: #107c10; border-color: #b7e3b3; }
+.rtg-status-warn  { background: #fff4ce; color: #797673; border-color: #f2e0a0; }
+.rtg-status-error { background: #fed9cc; color: #a4262c; border-color: #f1707b; }
+
+/* The mount keeps its anatomical 5-across shape; the wrapper scrolls when
+   the task pane is too narrow to show it at full size. */
+.rtg-mount-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  margin-bottom: 12px;
+  padding-bottom: 4px;
+}
+
+.rtg-mount {
+  min-width: 460px;
+  background: #f8f8f8;
+  border: 1px solid #e1dfdd;
+  border-radius: 4px;
+  padding: 8px;
+}
+
+.rtg-jaw-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #605e5c;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  margin: 2px 0 6px;
+}
+
+.rtg-mount-row + .rtg-jaw-label { margin-top: 8px; }
+
+.rtg-mount-row {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.rtg-slot {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 2px;
+  min-height: 96px;
+  background: #fff;
+  border: 1px solid #c8c6c4;
+  border-radius: 4px;
+  cursor: pointer;
+  font-family: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.rtg-slot:hover { border-color: #0078d4; }
+
+.rtg-slot.selected {
+  border-color: #0078d4;
+  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.3);
+}
+
+.rtg-slot.empty { background: #faf9f8; border-style: dashed; }
+
+.rtg-slot-num {
+  position: absolute;
+  top: 2px;
+  left: 3px;
+  font-size: 10px;
+  font-weight: 700;
+  color: #fff;
+  background: #605e5c;
+  border-radius: 3px;
+  padding: 0 4px;
+  line-height: 14px;
+  z-index: 1;
+}
+
+.rtg-slot.filled .rtg-slot-num { background: #0078d4; }
+
+.rtg-slot-img {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 62px;
+  background: #000;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rtg-slot.empty .rtg-slot-img { background: #edebe9; }
+
+.rtg-thumb {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.rtg-slot-placeholder { font-size: 20px; color: #a19f9d; line-height: 1; }
+
+.rtg-slot-label {
+  font-size: 9px;
+  color: #605e5c;
+  text-align: center;
+  line-height: 1.15;
+}
+
+.rtg-side-hints {
+  display: flex;
+  justify-content: space-between;
+  font-size: 10px;
+  color: #a19f9d;
+  padding: 0 2px;
+  margin-top: 2px;
+}
+
+/* Detail panel for the selected slot */
+.rtg-detail-panel {
+  background: #fff;
+  border: 1px solid #0078d4;
+  border-radius: 4px;
+  padding: 12px;
+  margin-bottom: 16px;
+}
+
+.rtg-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 2px;
+}
+
+.rtg-detail-title { font-size: 14px; font-weight: 600; color: #323130; }
+
+.rtg-detail-close {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: transparent;
+  color: #605e5c;
+  font-size: 15px;
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.rtg-detail-close:hover { background: #f3f2f1; }
+
+.rtg-detail-meta { font-size: 11px; color: #a19f9d; margin-bottom: 8px; }
+
+.rtg-preview {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  max-height: 260px;
+  background: #000;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.rtg-preview img { max-width: 100%; max-height: 256px; object-fit: contain; display: block; }
+
+.rtg-preview-empty { color: #8a8886; font-size: 12px; font-style: italic; }
+
+.rtg-file-meta {
+  font-size: 11px;
+  color: #605e5c;
+  word-break: break-all;
+  margin-bottom: 8px;
+}
+
+.rtg-detail-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.rtg-detail-actions .btn { flex: 1 1 auto; }
+.rtg-detail-actions .btn:disabled { opacity: 0.45; cursor: default; }
+
+.rtg-opinion-group { margin-top: 4px; }

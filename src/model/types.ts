@@ -110,6 +110,26 @@ export interface ICDASRootCariesToothData {
 }
 export type ICDASRootCariesData = Record<FdiToothNumber, ICDASRootCariesToothData>;
 
+// ── Radiographs (full-mouth periapical mount, 10 films) ──────────
+// Slot ids follow the radiographic mount: T = upper row, B = lower row,
+// columns 1–5 left→right as seen by the viewer (viewer left = patient right).
+export type RadiographSlotId =
+  | "T1" | "T2" | "T3" | "T4" | "T5"
+  | "B1" | "B2" | "B3" | "B4" | "B5";
+
+export interface RadiographImage {
+  dataUrl: string;   // compressed JPEG data URL, rotation already baked in
+  fileName: string;
+  width: number;
+  height: number;
+  caption: string;
+}
+
+export interface RadiographData {
+  images: Partial<Record<RadiographSlotId, RadiographImage>>;
+  opinion: string;   // overall radiographic diagnosis / opinion
+}
+
 // Free-text notes
 export interface NotesData {
   diagnosticNotes: string;
@@ -152,6 +172,7 @@ export interface ExaminationSession {
   furcationInvolvement: FurcationInvolvementData;
   icdasRootCaries: ICDASRootCariesData;
   notes: NotesData;
+  radiographs: RadiographData;
   ohip: OhipData;
   fdiQuestionnaire: FdiQuestionnaireData;
 }
