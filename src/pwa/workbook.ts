@@ -20,6 +20,7 @@ import {
   makeDefaultFurcationInvolvementData,
   makeDefaultICDASRootCariesData,
   makeDefaultRadiographs,
+  makeDefaultOhipExtra,
 } from "../model/session";
 
 /**
@@ -84,6 +85,7 @@ export async function readWorkbook(file: File): Promise<ExaminationSession | nul
   if (!session.furcationInvolvement) session.furcationInvolvement = makeDefaultFurcationInvolvementData();
   if (!session.icdasRootCaries) session.icdasRootCaries = makeDefaultICDASRootCariesData();
   if (!session.radiographs) session.radiographs = makeDefaultRadiographs();
+  if (!session.ohipExtra) session.ohipExtra = makeDefaultOhipExtra();
   if (!session.radiographs.images) session.radiographs.images = {};
 
   // Radiograph payloads live on their own sheet

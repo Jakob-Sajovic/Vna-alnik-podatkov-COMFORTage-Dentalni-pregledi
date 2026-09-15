@@ -18,6 +18,9 @@ import {
   SPECIAL_CASE_LABELS,
   OHIP_DOMAINS,
   OHIP_LIKERT_LABELS,
+  OHIP_HEALTH_RATING_QUESTION,
+  OHIP_APPEARANCE_RATING_QUESTION,
+  OHIP_COMMENT_QUESTION,
   ICDAS_SURFACE_FULL_NAMES,
   PB_SURFACE_TOOLTIPS,
   PROBING_BUCCAL_SITES,
@@ -676,6 +679,7 @@ function buildNotesSection(s: ExaminationSession): string {
 
 function buildOhipSection(s: ExaminationSession): string {
   const ohip = s.ohip;
+  const extra = s.ohipExtra || { healthRating: "", appearanceRating: "", comment: "" };
   let total = 0;
   let answered = 0;
 
@@ -709,6 +713,12 @@ function buildOhipSection(s: ExaminationSession): string {
   <section class="section page-break">
     <h2>OHIP-49</h2>
     <p class="score"><strong>Skupaj: ${total} / 196</strong> (${answered}/49 odgovorov)</p>
+    <table class="pb-table ohip-ratings">
+      <tbody>
+        <tr><td class="surface-label-cell">a) ${esc(OHIP_HEALTH_RATING_QUESTION)}</td><td>${esc(extra.healthRating.trim() || "—")}</td></tr>
+        <tr><td class="surface-label-cell">b) ${esc(OHIP_APPEARANCE_RATING_QUESTION)}</td><td>${esc(extra.appearanceRating.trim() || "—")}</td></tr>
+      </tbody>
+    </table>
     <table class="ohip-table">
       <thead>
         <tr><th>Podkategorija</th><th>Rezultat</th><th>Odgovori</th></tr>
@@ -717,6 +727,8 @@ function buildOhipSection(s: ExaminationSession): string {
         ${domainRows}
       </tbody>
     </table>
+    <h3>${esc(OHIP_COMMENT_QUESTION)}</h3>
+    <div class="notes-content">${esc(extra.comment.trim() || "—")}</div>
   </section>`;
 }
 
@@ -1066,6 +1078,8 @@ th { background: #f0f0f0; font-weight: 600; }
 .ohip-table .domain-score { font-weight: 600; width: 80px; }
 .ohip-table .domain-items { text-align: left; font-size: 9px; color: #555; }
 .ohip-item { white-space: nowrap; }
+.ohip-ratings { margin-bottom: 8px; }
+.ohip-ratings .surface-label-cell { width: 70%; white-space: normal; }
 .report-footer {
   margin-top: 20px;
   padding-top: 8px;

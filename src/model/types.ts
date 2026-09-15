@@ -61,6 +61,14 @@ export interface PatientData {
 export type OhipScore = 0 | 1 | 2 | 3 | 4;
 export type OhipData = (OhipScore | null)[];
 
+// OHIP companion items: two one-word self-ratings asked before item 1,
+// and the closing free-text message
+export interface OhipExtraData {
+  healthRating: string;
+  appearanceRating: string;
+  comment: string;
+}
+
 // Probing depth measurement sites (6 per tooth)
 export type ProbingSite = "distoBuccal" | "buccal" | "mesioBuccal"
   | "distoLingual" | "lingual" | "mesioLingual";
@@ -174,5 +182,6 @@ export interface ExaminationSession {
   notes: NotesData;
   radiographs: RadiographData;
   ohip: OhipData;
+  ohipExtra: OhipExtraData;
   fdiQuestionnaire: FdiQuestionnaireData;
 }

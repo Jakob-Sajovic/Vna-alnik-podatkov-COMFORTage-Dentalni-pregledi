@@ -28,6 +28,7 @@ import {
   makeDefaultFurcationInvolvementData,
   makeDefaultICDASRootCariesData,
   makeDefaultRadiographs,
+  makeDefaultOhipExtra,
 } from "../model/session";
 
 export const SHEET_NAME = "DentalExam_Data";
@@ -115,6 +116,7 @@ export function getColumnHeaders(): string[] {
 
   // OHIP 1–49
   for (let i = 1; i <= 49; i++) h.push(`ohip_${i}`);
+  h.push("ohip_a_health", "ohip_b_appearance", "ohip_comment");
 
   // FDI questionnaire
   h.push("fdi_gender", "fdi_age", "fdi_smoking", "fdi_diabetes",
@@ -221,6 +223,8 @@ export function sessionToRow(s: ExaminationSession): (string | number | boolean 
 
   // OHIP
   for (let i = 0; i < 49; i++) row.push(s.ohip[i]);
+  const ohipExtra = s.ohipExtra || makeDefaultOhipExtra();
+  row.push(ohipExtra.healthRating, ohipExtra.appearanceRating, ohipExtra.comment);
 
   // FDI questionnaire
   const fdi = s.fdiQuestionnaire || { gender: null, age: null, smoking: null, diabetes: null, toothLoss: null, plaque: null, bleeding: null, probingDepth: null, country: "" };
@@ -467,6 +471,7 @@ export function rowToSession(
     },
     radiographs: makeDefaultRadiographs(),
     ohip: [],
+    ohipExtra: makeDefaultOhipExtra(),
     fdiQuestionnaire: makeDefaultFdiQuestionnaire(),
   };
 
@@ -577,6 +582,11 @@ export function rowToSession(
   for (let i = 1; i <= 49; i++) {
     session.ohip.push(num(`ohip_${i}`) as ExaminationSession["ohip"][number]);
   }
+  session.ohipExtra = {
+    healthRating: str("ohip_a_health"),
+    appearanceRating: str("ohip_b_appearance"),
+    comment: str("ohip_comment"),
+  };
 
   // FDI questionnaire
   session.fdiQuestionnaire = {

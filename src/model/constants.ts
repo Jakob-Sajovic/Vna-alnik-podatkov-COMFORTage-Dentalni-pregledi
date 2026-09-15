@@ -76,6 +76,71 @@ export const OHIP_DOMAINS: OhipDomain[] = [
   { name: "Invalidnost", startItem: 44, endItem: 49 },
 ];
 
+// OHIP-49 item wording (Slovenian), index 0 = item 1. Kept verbatim from the
+// paper questionnaire the subject fills in.
+export const OHIP_QUESTIONS: string[] = [
+  "Ali imate zaradi problemov z zobmi, ustno votlino ali zobnimi nadomestki kdaj težave z žvečenjem hrane?",
+  "Ali imate zaradi problemov z zobmi, ustno votlino ali zobnimi nadomestki kdaj težave z izgovorjavo?",
+  "Ali ste opazili, da kakšen vaš zob ni videti v redu?",
+  "Ali menite, da je zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki prizadet vaš videz?",
+  "Ali imate zaradi težav v zobmi, ustno votlino ali zobnimi nadomestki slab zadah?",
+  "Ali se vam zdi, da se je zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki poslabšal vaš čut za okus?",
+  "Ali se vam hrana zatika med zobe ali zobne nadomestke?",
+  "Ali opažate, da se vam je zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki poslabšala prebava?",
+  "Ali občutite, da se vam zobni nadomestki ne prilegajo dobro?",
+  "Ali kdaj občutite v ustni votlini hudo bolečino?",
+  "Ali vas kdaj boli čeljust?",
+  "Ali imate zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki glavobole?",
+  "Ali so vaši zobje občutljivi na vročo ali mrzlo hrano oziroma pijačo?",
+  "Ali vas kdaj bolijo zobje?",
+  "Ali vas kdaj bolijo dlesni?",
+  "Ali zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki težko jeste kakšno hrano?",
+  "Ali imate kdaj v ustni votlini kakšna boleča mesta?",
+  "Ali vas zobni nadomestki tiščijo?",
+  "Ali ste zaskrbljeni zaradi težav z zobmi?",
+  "Ali ste kdaj razmišljali o vaših zobeh, ustih ali zobnih nadomestkih?",
+  "Ali ste zaradi težav z zobmi postali nesrečni?",
+  "Ali se neprijetno počutite zaradi izgleda vaših zob, ust ali zobnih nadomestkov?",
+  "Ali ste zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki kdaj napeti?",
+  "Ali zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki nerazločno govorite?",
+  "Ali zaradi vaših težav z zobmi, ustno votlino ali zobnimi nadomestki ljudje kdaj napačno razumejo kakšne vaše besede?",
+  "Ali čutite, da je zaradi vaših težav z zobmi, ustno votlino ali zobnimi nadomestki hrana manj okusna?",
+  "Ali si zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki ne morete dobro umiti zob?",
+  "Ali se morate zaradi težav zobmi, ustno votlino ali zobnimi nadomestki odreči kakšni hrani?",
+  "Ali je zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki vaša prehrana premalo raznovrstna?",
+  "Ali imate težave z zobnimi nadomestki in zaradi tega z njimi ne morete jesti?",
+  "Ali se zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki raje ne nasmihate?",
+  "Ali morate zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki kdaj prekiniti obrok?",
+  "Ali se zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki ponoči zbujate?",
+  "Ali ste zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki vznemirjeni?",
+  "Ali se zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki težko sprostite?",
+  "Ali ste zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki depresivni?",
+  "Ali je zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki prizadeta vaša koncentracija?",
+  "Ali vam je zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki kdaj nerodno?",
+  "Ali se zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki izogibate iti v družbo?",
+  "Ali ste zaradi vaših težav z zobmi, ustno votlino ali zobnimi nadomestki postali manj strpni do soproga/soproge ali bližnjih?",
+  "Ali se zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki slabše razumete z drugimi ljudmi?",
+  "Ali ste zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki kdaj razdražljivi v odnosu do drugih ljudi?",
+  "Ali zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki težje opravljate svoja običajna opravila?",
+  "Ali se vam zdi, da se je zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki poslabšalo vaše splošno zdravstveno stanje?",
+  "Ali ste zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki utrpeli kakršnokoli finančno izgubo?",
+  "Ali zaradi težav z zobmi, ustno votlino ali zobnimi nadomestki ne morete uživati v družbi drugih ljudi tako kot prej?",
+  "Ali se vam zdi, da vam zaradi vaših težav z zobmi, ustno votlino ali zobnimi nadomestki življenje na splošno nudi manj zadovoljstva?",
+  "Ali ste zaradi problemov z zobmi, ustno votlino ali zobnimi nadomestki popolnoma nesposobni funkcionirati?",
+  "Ali zaradi problemov z zobmi, ustno votlino ali zobnimi nadomestki ne morete dati vsega od sebe pri svojem delu?",
+];
+
+// One-word self-ratings asked before item 1
+export const OHIP_HEALTH_RATING_QUESTION =
+  "Kako bi z eno besedo ocenili zdravstveno stanje vašega zobovja in obzobnih tkiv (=dlesni)?";
+export const OHIP_APPEARANCE_RATING_QUESTION =
+  "Kako bi z eno besedo ocenili izgled vašega zobovja?";
+
+// Closing free-text item and thank-you line
+export const OHIP_COMMENT_QUESTION = "Ali nam želite še kaj sporočiti?";
+export const OHIP_CLOSING_TEXT =
+  "Hvala za vaš čas, ki ste nam ga namenili, pri izpolnjevanju vprašalnika.";
+
 // OHIP Likert scale labels (Slovenian)
 export const OHIP_LIKERT_LABELS: Record<number, string> = {
   0: "Nikoli",

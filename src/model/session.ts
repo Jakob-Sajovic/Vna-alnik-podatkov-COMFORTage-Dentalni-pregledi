@@ -20,6 +20,7 @@ import {
   ICDASRootCariesToothData,
   PatientData,
   OhipData,
+  OhipExtraData,
   NotesData,
   RadiographData,
 } from "./types";
@@ -166,6 +167,10 @@ function createDefaultRadiographs(): RadiographData {
   return { images: {}, opinion: "" };
 }
 
+export function makeDefaultOhipExtra(): OhipExtraData {
+  return { healthRating: "", appearanceRating: "", comment: "" };
+}
+
 export function makeDefaultRadiographs(): RadiographData {
   return createDefaultRadiographs();
 }
@@ -190,6 +195,7 @@ function createBlankSession(): ExaminationSession {
     notes: { diagnosticNotes: "", qualitativeNotes: "" },
     radiographs: createDefaultRadiographs(),
     ohip: new Array(49).fill(null) as OhipData,
+    ohipExtra: makeDefaultOhipExtra(),
     fdiQuestionnaire: createDefaultFdiQuestionnaire(),
   };
 }
@@ -294,6 +300,12 @@ export class SessionState {
 
   getOhip(): OhipData {
     return this.getSession().ohip;
+  }
+
+  getOhipExtra(): OhipExtraData {
+    const s = this.getSession();
+    if (!s.ohipExtra) s.ohipExtra = makeDefaultOhipExtra();
+    return s.ohipExtra;
   }
 
   getFdiQuestionnaire(): FdiQuestionnaireData {

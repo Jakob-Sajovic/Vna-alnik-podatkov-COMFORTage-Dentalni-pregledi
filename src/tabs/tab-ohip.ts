@@ -1,13 +1,24 @@
 import { TabController } from "./tab-manager";
 import { SessionState } from "../model/session";
-import { OHIP_DOMAINS, OHIP_LIKERT_LABELS } from "../model/constants";
-import { OhipScore } from "../model/types";
+import {
+  OHIP_DOMAINS,
+  OHIP_LIKERT_LABELS,
+  OHIP_QUESTIONS,
+  OHIP_HEALTH_RATING_QUESTION,
+  OHIP_APPEARANCE_RATING_QUESTION,
+  OHIP_COMMENT_QUESTION,
+  OHIP_CLOSING_TEXT,
+} from "../model/constants";
+import { OhipExtraData, OhipScore } from "../model/types";
 
 export class OhipTabController implements TabController {
   private panel: HTMLElement | null = null;
   private session: SessionState;
   private scoreBar: HTMLElement | null = null;
   private domainScoreEls: HTMLElement[] = [];
+  private healthInput: HTMLInputElement | null = null;
+  private appearanceInput: HTMLInputElement | null = null;
+  private commentTextarea: HTMLTextAreaElement | null = null;
 
   constructor(session: SessionState) {
     this.session = session;
@@ -22,7 +33,20 @@ export class OhipTabController implements TabController {
           <button class="btn btn-danger-outline btn-sm" id="ohip-reset-btn">Ponastavi OHIP</button>
         </div>
         <div class="ohip-score-bar" id="ohip-score-bar">Skupaj: 0 / 196</div>
+        <div class="form-group">
+          <label class="form-label" for="ohip-health-rating">a) ${OHIP_HEALTH_RATING_QUESTION}</label>
+          <input type="text" id="ohip-health-rating" class="form-input" autocomplete="off">
+        </div>
+        <div class="form-group">
+          <label class="form-label" for="ohip-appearance-rating">b) ${OHIP_APPEARANCE_RATING_QUESTION}</label>
+          <input type="text" id="ohip-appearance-rating" class="form-input" autocomplete="off">
+        </div>
         <div id="ohip-domains"></div>
+        <div class="form-group">
+          <label class="form-label" for="ohip-comment">${OHIP_COMMENT_QUESTION}</label>
+          <textarea id="ohip-comment" class="form-textarea" rows="4"></textarea>
+        </div>
+        <p class="ohip-closing">${OHIP_CLOSING_TEXT}</p>
         <p class="tab-help-footer">
           Za vsako vprašanje izberite oceno od 0 (nikoli) do 4 (zelo pogosto). Rezultati se izračunajo samodejno po podkategorijah in skupaj.
         </p>
@@ -32,6 +56,24 @@ export class OhipTabController implements TabController {
     this.scoreBar = panel.querySelector("#ohip-score-bar") as HTMLElement;
     const container = panel.querySelector("#ohip-domains") as HTMLElement;
     this.domainScoreEls = [];
+
+    // Free-text fields write to the model on every keystroke so autosave and a
+    // save without leaving the tab both see the latest text
+    this.healthInput = panel.querySelector("#ohip-health-rating") as HTMLInputElement;
+    this.appearanceInput = panel.querySelector("#ohip-appearance-rating") as HTMLInputElement;
+    this.commentTextarea = panel.querySelector("#ohip-comment") as HTMLTextAreaElement;
+    const bindText = (el: HTMLInputElement | HTMLTextAreaElement, key: keyof OhipExtraData) => {
+      el.addEventListener("input", () => {
+        if (!this.session.hasSession()) return;
+        this.session.getOhipExtra()[key] = el.value;
+      });
+      el.addEventListener("change", () => {
+        if (this.session.hasSession()) this.session.touch();
+      });
+    };
+    bindText(this.healthInput, "healthRating");
+    bindText(this.appearanceInput, "appearanceRating");
+    bindText(this.commentTextarea, "comment");
 
     for (const domain of OHIP_DOMAINS) {
       const domainEl = document.createElement("div");
@@ -64,6 +106,10 @@ export class OhipTabController implements TabController {
         numEl.className = "ohip-item-number";
         numEl.textContent = String(itemNum);
 
+        const textEl = document.createElement("span");
+        textEl.className = "ohip-item-text";
+        textEl.textContent = OHIP_QUESTIONS[itemNum - 1];
+
         const radioGroup = document.createElement("div");
         radioGroup.className = "ohip-radio-group";
 
@@ -79,6 +125,7 @@ export class OhipTabController implements TabController {
         }
 
         itemEl.appendChild(numEl);
+        itemEl.appendChild(textEl);
         itemEl.appendChild(radioGroup);
         domainEl.appendChild(itemEl);
       }
@@ -105,6 +152,11 @@ export class OhipTabController implements TabController {
           if (!this.session.hasSession()) return;
           const ohip = this.session.getOhip();
           for (let i = 0; i < 49; i++) ohip[i] = null;
+          const extra = this.session.getOhipExtra();
+          extra.healthRating = "";
+          extra.appearanceRating = "";
+          extra.comment = "";
+          this.restoreTextFields();
           this.session.touch();
           const buttons = this.panel?.querySelectorAll(".ohip-radio-btn") as NodeListOf<HTMLElement>;
           buttons.forEach((btn) => btn.classList.remove("selected"));
@@ -152,11 +204,21 @@ export class OhipTabController implements TabController {
       btn.classList.toggle("selected", ohip[itemIndex] === score);
     });
 
+    this.restoreTextFields();
+
     this.updateScores();
   }
 
   onDeactivate(): void {
     // Data is written immediately on click, nothing to do
+  }
+
+  private restoreTextFields(): void {
+    if (!this.session.hasSession()) return;
+    const extra = this.session.getOhipExtra();
+    if (this.healthInput) this.healthInput.value = extra.healthRating;
+    if (this.appearanceInput) this.appearanceInput.value = extra.appearanceRating;
+    if (this.commentTextarea) this.commentTextarea.value = extra.comment;
   }
 
   private updateScores(): void {

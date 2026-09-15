@@ -19,6 +19,7 @@ import {
   makeDefaultFurcationInvolvementData,
   makeDefaultICDASRootCariesData,
   makeDefaultRadiographs,
+  makeDefaultOhipExtra,
 } from "../model/session";
 
 async function saveRadiographImages(
@@ -109,8 +110,8 @@ async function readRadiographImages(
  * Row 1 = column headers, row 2+ = data (one row per examination).
  */
 export async function saveSessionToExcel(session: ExaminationSession): Promise<void> {
-  const headers = getColumnHeaders();
-  const rowData = sessionToRow(session);
+  let headers = getColumnHeaders();
+  let rowData = sessionToRow(session);
 
   await Excel.run(async (context) => {
     const sheets = context.workbook.worksheets;
@@ -131,7 +132,7 @@ export async function saveSessionToExcel(session: ExaminationSession): Promise<v
     } else {
       // Find next empty row
       const usedRange = sheet.getUsedRangeOrNullObject();
-      usedRange.load("rowCount");
+      usedRange.load("rowCount,columnCount");
       await context.sync();
 
       if (usedRange.isNullObject) {
@@ -142,6 +143,30 @@ export async function saveSessionToExcel(session: ExaminationSession): Promise<v
         nextRow = 1;
       } else {
         nextRow = usedRange.rowCount;
+
+        // A sheet written by an older version has a different column set. Align
+        // the new row to the existing header row by name, and append any new
+        // columns at the end, so older rows and the _json column stay in place.
+        const existingRange = sheet.getRangeByIndexes(0, 0, 1, Math.max(usedRange.columnCount, 1));
+        existingRange.load("values");
+        await context.sync();
+        const existing = (existingRange.values[0] as unknown[]).map((h) => String(h ?? ""));
+        while (existing.length > 0 && existing[existing.length - 1] === "") existing.pop();
+
+        const sameLayout = existing.length === headers.length && existing.every((h, i) => h === headers[i]);
+        if (!sameLayout && existing.length > 0) {
+          const valueByHeader = new Map<string, unknown>();
+          headers.forEach((h, i) => valueByHeader.set(h, rowData[i]));
+          const added = headers.filter((h) => !existing.includes(h));
+          const merged = [...existing, ...added];
+          if (added.length > 0) {
+            const addedRange = sheet.getRangeByIndexes(0, existing.length, 1, added.length);
+            addedRange.values = [added];
+            addedRange.format.font.bold = true;
+          }
+          headers = merged;
+          rowData = merged.map((h) => (valueByHeader.has(h) ? valueByHeader.get(h) : null)) as typeof rowData;
+        }
       }
     }
 
@@ -220,6 +245,7 @@ export async function loadSessionFromExcel(): Promise<ExaminationSession | null>
       if (!result.furcationInvolvement) result.furcationInvolvement = makeDefaultFurcationInvolvementData();
       if (!result.icdasRootCaries) result.icdasRootCaries = makeDefaultICDASRootCariesData();
       if (!result.radiographs) result.radiographs = makeDefaultRadiographs();
+      if (!result.ohipExtra) result.ohipExtra = makeDefaultOhipExtra();
       if (!result.radiographs.images) result.radiographs.images = {};
     }
 
@@ -309,6 +335,7 @@ export async function loadSessionFromFile(base64: string): Promise<ExaminationSe
       if (!result.furcationInvolvement) result.furcationInvolvement = makeDefaultFurcationInvolvementData();
       if (!result.icdasRootCaries) result.icdasRootCaries = makeDefaultICDASRootCariesData();
       if (!result.radiographs) result.radiographs = makeDefaultRadiographs();
+      if (!result.ohipExtra) result.ohipExtra = makeDefaultOhipExtra();
       if (!result.radiographs.images) result.radiographs.images = {};
     }
 
