@@ -62,27 +62,51 @@ function esc(str: string): string {
   return div.innerHTML;
 }
 
-function buildReportHtml(s: ExaminationSession): string {
+function patientDisplayName(s: ExaminationSession): string {
   const patient = s.patient;
-  const patientName = (patient.firstName && patient.lastName)
+  return (patient.firstName && patient.lastName)
     ? `${patient.firstName} ${patient.lastName}`
     : (patient.code || "—");
+}
+
+/** File name offered for the PDF: code (or name), checkup number and date. */
+export function reportFileTitle(s: ExaminationSession): string {
+  const who = (s.patient.code || [s.patient.firstName, s.patient.lastName].filter(Boolean).join("_") || "pregled")
+    .replace(/[^\w\-.čšžČŠŽ]+/g, "_");
+  return `Porocilo_${who}_pregled${s.patient.checkup || 1}_${s.patient.date || "brez-datuma"}`;
+}
+
+function buildReportHtml(s: ExaminationSession): string {
+  return `<!DOCTYPE html>
+<html lang="sl">
+<head>
+<meta charset="UTF-8">
+<title>Poročilo pregleda — ${esc(patientDisplayName(s))}</title>
+<style>
+${REPORT_CSS}
+</style>
+</head>
+<body>
+${buildReportBody(s)}
+<script>window.onload = function() { window.print(); }<\/script>
+</body>
+</html>`;
+}
+
+/**
+ * The report itself, without the document around it — shared by the add-in's
+ * print window and the PWA's in-app report layer.
+ */
+export function buildReportBody(s: ExaminationSession): string {
+  const patient = s.patient;
+  const patientName = patientDisplayName(s);
 
   const examiner = s.examiner || { firstName: "", lastName: "" };
   const examinerName = (examiner.firstName && examiner.lastName)
     ? `${examiner.firstName} ${examiner.lastName}`
     : "—";
 
-  return `<!DOCTYPE html>
-<html lang="sl">
-<head>
-<meta charset="UTF-8">
-<title>Poročilo pregleda — ${esc(patientName)}</title>
-<style>
-${REPORT_CSS}
-</style>
-</head>
-<body>
+  return `
 <div class="report">
   <header class="report-header">
     <h1>Zobozdravstveni pregled</h1>
@@ -114,10 +138,7 @@ ${REPORT_CSS}
   <footer class="report-footer">
     Ustvarjeno: ${new Date().toLocaleString("sl-SI")}
   </footer>
-</div>
-<script>window.onload = function() { window.print(); }<\/script>
-</body>
-</html>`;
+</div>`;
 }
 
 
@@ -1029,7 +1050,7 @@ function icdasToothSvgStr(
 
 // ── Report CSS ────────────────────────────────────────────────────
 
-const REPORT_CSS = `
+export const REPORT_CSS = `
 * { box-sizing: border-box; margin: 0; padding: 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; color-adjust: exact !important; }
 body {
   font-family: "Segoe UI", -apple-system, sans-serif;
@@ -1039,6 +1060,8 @@ body {
   padding: 16px;
 }
 .report { max-width: 900px; margin: 0 auto; }
+/* In the PWA layer the report sits in a shadow root, where "body" matches nothing. */
+:host .report { font-family: "Segoe UI", -apple-system, sans-serif; font-size: 11px; color: #1a1a1a; background: #fff; padding: 16px; line-height: normal; }
 .report-header {
   border-bottom: 2px solid #0078d4;
   padding-bottom: 12px;

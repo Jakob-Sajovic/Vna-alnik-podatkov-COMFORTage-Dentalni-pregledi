@@ -5,6 +5,7 @@ import { ALL_TEETH, PROBING_ALL_SITES } from "../model/constants";
 import { SessionStore } from "../storage/session-store";
 import { ExcelStore } from "../storage/excel-store";
 import { generateReport } from "../report/report-generator";
+import { openReportLayer } from "../report/report-layer";
 
 export class SaveReportTabController implements TabController {
   private panel: HTMLElement | null = null;
@@ -100,6 +101,15 @@ export class SaveReportTabController implements TabController {
 
   private handleReport(): void {
     if (!this.session.hasSession()) return;
+
+    // The PWA (the store with local sessions) shows the report in-app and builds
+    // the PDF itself — window.open and window.print() both fail in an installed
+    // iOS app. The add-in keeps its print window.
+    if (this.store.local) {
+      openReportLayer(this.session.getSession());
+      if (this.statusMsg) this.statusMsg.textContent = "";
+      return;
+    }
 
     try {
       generateReport(this.session.getSession());

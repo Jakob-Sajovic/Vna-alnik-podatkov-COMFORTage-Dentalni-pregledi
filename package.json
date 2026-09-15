@@ -28,7 +28,10 @@
   },
   "dependencies": {
     "core-js": "^3.36.0",
+    "jspdf": "^4.2.1",
+    "jspdf-autotable": "^5.0.8",
     "regenerator-runtime": "^0.14.1",
+    "svg2pdf.js": "^2.8.1",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

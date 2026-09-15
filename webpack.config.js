@@ -10,6 +10,7 @@ const PWA_SHELL_FILES = [
   "./",
   "index.html",
   "pwa.js",
+  "report-pdf.js",
   "manifest.webmanifest",
   "icons/icon-192.png",
   "icons/icon-512.png",
@@ -42,10 +43,16 @@ module.exports = async (env, options) => {
     output: {
       clean: true,
       filename: (pathData) => (pathData.chunk.name === "pwa" ? "pwa/[name].js" : "[name].js"),
+      // On-demand chunks (the PWA's PDF writer) live under pwa/, inside the
+      // service worker's scope, with a stable name it can pre-cache.
+      chunkFilename: "pwa/[name].js",
     },
     resolve: {
       extensions: [".ts", ".html", ".js"],
     },
+    // Keep jsPDF and svg2pdf inside report-pdf.js rather than numbered vendor
+    // chunks, so the one pre-cached file is all the PDF export needs offline.
+    optimization: { splitChunks: { cacheGroups: { defaultVendors: false, default: false } } },
     module: {
       rules: [
         {

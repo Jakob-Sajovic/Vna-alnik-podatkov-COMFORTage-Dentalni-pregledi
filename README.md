@@ -200,7 +200,10 @@ DentalExam/
       idb.ts                 — minimal IndexedDB wrapper, no dependencies
       static/                — manifest.webmanifest, sw.js, icons/
     report/
-      report-generator.ts    — print-friendly HTML report generation
+      report-generator.ts    — report HTML (add-in: print window; PWA: in-app layer)
+      report-layer.ts        — PWA: report as an in-app layer, PDF share (iOS) / download
+      report-pdf.ts          — PWA: rendered report → vector A4 PDF (jsPDF, svg2pdf, autotable)
+      fonts.ts               — DejaVu Sans subset embedded in the PDF (standard PDF fonts lack č)
     commands/                — ribbon command page & handlers (add-in only)
   assets/                    — icons and reference images
   manifest.xml               — Office Add-in XML manifest
@@ -214,7 +217,21 @@ DentalExam/
 - Office JavaScript API (`Excel.run`, worksheets, ranges) — add-in target
 - SheetJS (`xlsx`) + IndexedDB + a service worker — standalone target
 - Webpack + Babel (the project builds via **babel**, not `tsc`)
-- PDF via browser print dialog
+- PDF: add-in via the browser print dialog; standalone app generates the PDF itself (jsPDF)
+
+### PDF in the standalone app
+
+An app installed to the iOS home screen hands `window.open` to Safari (no way back into the app)
+and ignores `window.print()`. So the PWA shows the report as a full-screen layer inside the app
+and **builds the PDF in the browser**: `report-pdf.ts` walks the report the layer has laid out
+(the same HTML the add-in prints) — charts through svg2pdf (vector), tables through
+jspdf-autotable with their cell colours, radiographs as JPEGs. On iOS/iPadOS the file goes to the
+share sheet (`navigator.share` with files: Save to Files, Print, Mail); elsewhere it downloads,
+and *Natisni* (printing the layer) stays available. iOS only opens the share sheet from inside the
+tap, so the PDF is built when the report opens and the button enables when it is ready.
+
+`pwa/report-pdf.js` is a named on-demand chunk inside the service worker's scope and on its
+pre-cache list, so the PDF works offline. The add-in is unchanged.
 
 ## License
 

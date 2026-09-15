@@ -131,3 +131,40 @@
   font-family: Consolas, "Courier New", monospace;
   font-size: 10px;
 }
+
+/* ===== Report layer (in-app report, PDF via share sheet / download) ===== */
+.report-overlay {
+  position: fixed; inset: 0; z-index: 1000;
+  display: flex; flex-direction: column; background: #e9e8e6;
+}
+.report-toolbar {
+  display: flex; align-items: center; gap: 8px; flex-shrink: 0;
+  padding: 8px 12px; padding-top: calc(8px + env(safe-area-inset-top, 0px));
+  background: #fff; border-bottom: 1px solid #e1dfdd;
+}
+.report-toolbar .btn { min-height: 44px; width: auto; }
+.report-toolbar-title { flex: 1; text-align: center; font-weight: 600; font-size: 15px; }
+.report-status { flex-shrink: 0; padding: 8px 12px; background: #fff4ce; color: #323130; font-size: 13px; border-bottom: 1px solid #e1dfdd; }
+.report-scroll {
+  flex: 1; overflow: auto; -webkit-overflow-scrolling: touch;
+  padding: 12px; padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+}
+.report-sheet {
+  background: #fff; max-width: 900px; min-width: 640px; margin: 0 auto;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, .15);
+}
+@media (max-width: 560px) {
+  .report-toolbar-title { display: none; }
+  .report-toolbar { justify-content: space-between; }
+}
+
+@media print {
+  @page { size: A4; margin: 12mm; }
+  /* The app locks html/body to the screen height; printing needs normal flow */
+  body.report-open, html:has(body.report-open) { height: auto !important; overflow: visible !important; background: #fff; }
+  body.report-open #app { display: none !important; }
+  body.report-open .report-overlay { position: static; display: block; background: #fff; }
+  body.report-open .report-toolbar, body.report-open .report-status { display: none !important; }
+  body.report-open .report-scroll { overflow: visible; padding: 0; }
+  body.report-open .report-sheet { box-shadow: none; max-width: none; min-width: 0; }
+}
