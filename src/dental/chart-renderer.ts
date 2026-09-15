@@ -75,7 +75,7 @@ export function createPBToothSvg(tooth: FdiToothNumber, size: number): SVGSVGEle
  *
  * Chart layout (facing patient):
  *   Upper: 18→11 | 21→28  (Q1 left, Q2 right)
- *   Lower: 38→31 | 41→48  (Q3 left, Q4 right)
+ *   Lower: 48→41 | 31→38  (Q4 left, Q3 right — LOWER_JAW_MIRRORED)
  *
  * Convention:
  *   top/bottom (vestibular/oral):
@@ -83,8 +83,8 @@ export function createPBToothSvg(tooth: FdiToothNumber, size: number): SVGSVGEle
  *     Q3/Q4 (lower): top = lingual (oralno), bottom = buccal (vestibularno)
  *
  *   left/right (distal/mesial):
- *     Q1/Q3 (left half): left = distal, right = mesial
- *     Q2/Q4 (right half): left = mesial, right = distal
+ *     Q1/Q4 (left half): left = distal, right = mesial
+ *     Q2/Q3 (right half): left = mesial, right = distal
  */
 export function getSurfaceForPosition(tooth: FdiToothNumber, position: VisualPosition): PBSurface {
   const quadrant = Math.floor(tooth / 10);
@@ -95,9 +95,9 @@ export function getSurfaceForPosition(tooth: FdiToothNumber, position: VisualPos
     case "bottom":
       return (quadrant <= 2) ? "lingual" : "buccal";
     case "left":
-      return (quadrant === 1 || quadrant === 3) ? "distal" : "mesial";
+      return (quadrant === 1 || quadrant === 4) ? "distal" : "mesial";
     case "right":
-      return (quadrant === 1 || quadrant === 3) ? "mesial" : "distal";
+      return (quadrant === 1 || quadrant === 4) ? "mesial" : "distal";
     default:
       return "buccal";
   }
@@ -195,9 +195,9 @@ export function getICDASSurfaceForPosition(tooth: FdiToothNumber, position: ICDA
     case "bottom":
       return (quadrant <= 2) ? "lingual" : "buccal";
     case "left":
-      return (quadrant === 1 || quadrant === 3) ? "distal" : "mesial";
+      return (quadrant === 1 || quadrant === 4) ? "distal" : "mesial";
     case "right":
-      return (quadrant === 1 || quadrant === 3) ? "mesial" : "distal";
+      return (quadrant === 1 || quadrant === 4) ? "mesial" : "distal";
     default:
       return "occlusal";
   }
