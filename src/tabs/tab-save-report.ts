@@ -6,6 +6,7 @@ import { SessionStore } from "../storage/session-store";
 import { ExcelStore } from "../storage/excel-store";
 import { generateReport } from "../report/report-generator";
 import { openReportLayer } from "../report/report-layer";
+import { radiographIssueText } from "../model/radiographs";
 
 export class SaveReportTabController implements TabController {
   private panel: HTMLElement | null = null;
@@ -221,6 +222,8 @@ export class SaveReportTabController implements TabController {
         </div>
       </div>
 
+      ${this.buildRadiographSummaryCard()}
+
       <div class="summary-card">
         <div class="summary-card-title">OHIP-49</div>
         <div class="summary-card-content">
@@ -230,6 +233,29 @@ export class SaveReportTabController implements TabController {
 
       ${this.buildFdiSummaryCard(s)}
     `;
+  }
+
+  private buildRadiographSummaryCard(): string {
+    const rg = this.session.getRadiographs();
+    let body: string;
+    if (rg.mode === "composite") {
+      body = `Ena sestavljena slika: ${rg.composite ? "naložena" : "ni naložena"}`;
+    } else if (rg.mode === "partial") {
+      const films = (list: typeof rg.upper) => list.filter((f) => !f.skip).length;
+      body = `Delni posnetki — zgoraj: ${films(rg.upper)}, spodaj: ${films(rg.lower)}`;
+    } else {
+      body = "Ni vnosa";
+    }
+    // Not blocking: the operator can still save, but sees what is missing
+    const issue = radiographIssueText(rg);
+    const warning = issue
+      ? `<br><span style="color:#a4262c; font-weight:600;">⚠ ${this.escapeHtml(issue)}</span>`
+      : "";
+    return `
+      <div class="summary-card">
+        <div class="summary-card-title">Rentgenske slike</div>
+        <div class="summary-card-content">${body}${warning}</div>
+      </div>`;
   }
 
   private calcPBScore(data: Record<FdiToothNumber, PBToothData>): {

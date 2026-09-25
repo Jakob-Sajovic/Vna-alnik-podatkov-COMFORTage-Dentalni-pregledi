@@ -105,14 +105,14 @@ async function decodeOriented(file: File): Promise<DecodedImage> {
 }
 
 /**
- * Downscale to RADIOGRAPH_MAX_DIMENSION on the longest edge and re-encode as
- * JPEG, so that ten films stay small enough to round-trip through Excel cells.
+ * Downscale to `maxDimension` on the longest edge and re-encode as JPEG, so
+ * the films stay small enough to round-trip through Excel cells.
  */
-export async function processImageFile(file: File): Promise<ProcessedImage> {
+export async function processImageFile(file: File, maxDimension = RADIOGRAPH_MAX_DIMENSION): Promise<ProcessedImage> {
   const decoded = await decodeOriented(file);
   try {
     const longest = Math.max(decoded.width, decoded.height);
-    const scale = longest > RADIOGRAPH_MAX_DIMENSION ? RADIOGRAPH_MAX_DIMENSION / longest : 1;
+    const scale = longest > maxDimension ? maxDimension / longest : 1;
     const width = Math.max(1, Math.round(decoded.width * scale));
     const height = Math.max(1, Math.round(decoded.height * scale));
 
@@ -174,36 +174,6 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} kB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
-/** Natural sort so that "slika2.jpg" comes before "slika10.jpg". */
-export function compareFileNames(a: string, b: string): number {
-  return a.localeCompare(b, "sl", { numeric: true, sensitivity: "base" });
-}
-
-/**
- * Some Android gallery pickers hand back files with no usable name, or the
- * same name for every item. File-name ordering is meaningless then, so fall
- * back to capture time — shooting the mount in sequence is the natural
- * workflow, which makes that the right order anyway.
- */
-export type SortBasis = "name" | "time";
-
-export function sortPickedFiles(files: File[]): { files: File[]; basis: SortBasis } {
-  const names = files.map((f) => (f.name || "").trim());
-  const allNamed = names.every((n) => n.length > 0);
-  const allDistinct = new Set(names).size === names.length;
-
-  if (allNamed && allDistinct) {
-    return {
-      files: [...files].sort((a, b) => compareFileNames(a.name, b.name)),
-      basis: "name",
-    };
-  }
-  return {
-    files: [...files].sort((a, b) => (a.lastModified || 0) - (b.lastModified || 0)),
-    basis: "time",
-  };
 }
 
 /**

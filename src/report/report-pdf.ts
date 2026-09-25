@@ -17,10 +17,12 @@ import { DEJAVU_SANS, DEJAVU_SANS_BOLD } from "./fonts";
  * Loaded on demand; it pulls in jsPDF, svg2pdf and an embedded font.
  */
 
+// Portrait A4. Radiograph sections switch to landscape pages, so the page
+// geometry is read through the writer's getters, not these constants.
 const PAGE_W = 210;
 const PAGE_H = 297;
 const MARGIN = 12;
-const BOTTOM = PAGE_H - 15; // room for the page number
+const FOOT = 15; // room for the page number
 const CONTENT_W = PAGE_W - 2 * MARGIN;
 const PT = 0.3528; // mm per point
 const FONT = "dejavu";
@@ -55,8 +57,11 @@ export async function renderReportPdf(report: HTMLElement, title: string): Promi
   return doc.output("blob");
 }
 
+type Orientation = "portrait" | "landscape";
+
 class DomPdfWriter {
   private y = MARGIN;
+  private orientation: Orientation = "portrait";
   /** Millimetres per CSS pixel of the laid-out report. */
   private k: number;
 
@@ -64,6 +69,24 @@ class DomPdfWriter {
     const cs = getComputedStyle(report);
     const inner = report.getBoundingClientRect().width - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
     this.k = CONTENT_W / (inner > 0 ? inner : 868);
+  }
+
+  // ── page geometry ───────────────────────────────────────────────
+
+  private get pw(): number {
+    return this.orientation === "portrait" ? PAGE_W : PAGE_H;
+  }
+
+  private get ph(): number {
+    return this.orientation === "portrait" ? PAGE_H : PAGE_W;
+  }
+
+  private get bottom(): number {
+    return this.ph - FOOT;
+  }
+
+  private get cw(): number {
+    return this.pw - 2 * MARGIN;
   }
 
   // ── primitives ──────────────────────────────────────────────────
@@ -84,11 +107,12 @@ class DomPdfWriter {
   }
 
   private ensure(h: number): void {
-    if (this.y + h > BOTTOM) this.newPage();
+    if (this.y + h > this.bottom) this.newPage();
   }
 
-  private newPage(): void {
-    this.doc.addPage();
+  private newPage(orientation: Orientation = this.orientation): void {
+    this.doc.addPage("a4", orientation);
+    this.orientation = orientation;
     this.y = MARGIN;
   }
 
@@ -100,6 +124,10 @@ class DomPdfWriter {
 
   async write(): Promise<void> {
     for (const child of Array.from(this.report.children)) {
+      // Radiograph sections get landscape pages; everything else is portrait
+      const wanted: Orientation = child.matches("section.rtg-landscape") ? "landscape" : "portrait";
+      if (wanted !== this.orientation) this.newPage(wanted);
+
       if (child.matches("header.report-header")) this.header(child as HTMLElement);
       else if (child.matches(".signature-section")) this.signatures(child as HTMLElement);
       else if (child.matches("footer.report-footer")) this.footer(child as HTMLElement);
@@ -148,7 +176,7 @@ class DomPdfWriter {
       const sw = this.doc.getTextWidth(strong + " ");
       this.font(9);
       const rw = this.doc.getTextWidth(rest);
-      if (x > MARGIN && x + sw + rw > PAGE_W - MARGIN) {
+      if (x > MARGIN && x + sw + rw > this.pw - MARGIN) {
         x = MARGIN;
         this.y += 5;
       }
@@ -161,7 +189,7 @@ class DomPdfWriter {
     this.y += 4;
     this.doc.setDrawColor(...BLUE);
     this.doc.setLineWidth(0.6);
-    this.doc.line(MARGIN, this.y, PAGE_W - MARGIN, this.y);
+    this.doc.line(MARGIN, this.y, this.pw - MARGIN, this.y);
     this.y += 6;
   }
 
@@ -176,7 +204,7 @@ class DomPdfWriter {
       this.y += 6.5;
       this.doc.setDrawColor(...BLUE);
       this.doc.setLineWidth(0.3);
-      this.doc.line(MARGIN, this.y, PAGE_W - MARGIN, this.y);
+      this.doc.line(MARGIN, this.y, this.pw - MARGIN, this.y);
       this.y += 4;
     } else {
       this.ensure(8 + followH);
@@ -202,7 +230,7 @@ class DomPdfWriter {
       const lw = this.doc.getTextWidth(lead);
       this.font(size, false, color);
       const rest = text.slice(lead.length);
-      if (lw + this.doc.getTextWidth(rest) <= CONTENT_W) {
+      if (lw + this.doc.getTextWidth(rest) <= this.cw) {
         this.ensure(lineH + 2);
         this.font(size, true, color);
         this.doc.text(lead, MARGIN, this.y + lineH * 0.8);
@@ -212,7 +240,7 @@ class DomPdfWriter {
         return;
       }
     }
-    const lines = this.doc.splitTextToSize(text, CONTENT_W) as string[];
+    const lines = this.doc.splitTextToSize(text, this.cw) as string[];
     for (const ln of lines) {
       this.ensure(lineH);
       this.doc.text(ln, MARGIN, this.y + lineH * 0.8);
@@ -226,7 +254,7 @@ class DomPdfWriter {
       const size = this.pt(li);
       const lineH = size * 1.3 * PT;
       this.font(size);
-      const lines = this.doc.splitTextToSize((li.textContent || "").replace(/\s+/g, " ").trim(), CONTENT_W - 5) as string[];
+      const lines = this.doc.splitTextToSize((li.textContent || "").replace(/\s+/g, " ").trim(), this.cw - 5) as string[];
       lines.forEach((ln, i) => {
         this.ensure(lineH);
         if (i === 0) this.doc.text("•", MARGIN + 1, this.y + lineH * 0.8);
@@ -243,7 +271,7 @@ class DomPdfWriter {
     for (const svg of Array.from(el.querySelectorAll(":scope > svg")) as SVGSVGElement[]) {
       const rect = svg.getBoundingClientRect();
       if (!rect.width || !rect.height) continue;
-      const wMm = Math.min(CONTENT_W, this.mm(rect.width) * grow);
+      const wMm = Math.min(this.cw, this.mm(rect.width) * grow);
       const hMm = (rect.height / rect.width) * wMm;
       this.ensure(hMm + 1);
 
@@ -260,7 +288,7 @@ class DomPdfWriter {
       clone.style.left = "-10000px";
       document.body.appendChild(clone);
       try {
-        await svg2pdf(clone, this.doc, { x: MARGIN + (CONTENT_W - wMm) / 2, y: this.y, width: wMm, height: hMm });
+        await svg2pdf(clone, this.doc, { x: MARGIN + (this.cw - wMm) / 2, y: this.y, width: wMm, height: hMm });
       } finally {
         clone.remove();
       }
@@ -287,7 +315,7 @@ class DomPdfWriter {
     const lines: number[][] = [[]];
     let lw = 0;
     widths.forEach((wd, i) => {
-      if (lw + wd > CONTENT_W && lines[lines.length - 1].length) {
+      if (lw + wd > this.cw && lines[lines.length - 1].length) {
         lines.push([]);
         lw = 0;
       }
@@ -297,7 +325,7 @@ class DomPdfWriter {
     this.ensure(lines.length * 4.5 + 1);
     for (const line of lines) {
       const total = line.reduce((a, i) => a + widths[i], 0) + gap * (line.length - 1);
-      let x = MARGIN + (CONTENT_W - total) / 2;
+      let x = MARGIN + (this.cw - total) / 2;
       for (const i of line) {
         this.doc.setFillColor(...items[i].fill);
         this.doc.setDrawColor(...items[i].border);
@@ -318,7 +346,7 @@ class DomPdfWriter {
       html: el,
       useCss: true,
       startY: this.y,
-      margin: { left: MARGIN, right: MARGIN, bottom: PAGE_H - BOTTOM },
+      margin: { left: MARGIN, right: MARGIN, bottom: FOOT },
       // Small tables stay whole; long ones (OHIP, FDI) may continue on the next page.
       pageBreak: rowCount <= 12 ? "avoid" : "auto",
       rowPageBreak: "avoid",
@@ -359,19 +387,19 @@ class DomPdfWriter {
     this.font(size);
     const lines = text
       .split("\n")
-      .flatMap((para) => (para.trim() ? (this.doc.splitTextToSize(para, CONTENT_W - 6) as string[]) : [""]));
+      .flatMap((para) => (para.trim() ? (this.doc.splitTextToSize(para, this.cw - 6) as string[]) : [""]));
     const full = lines.length * lineH + 5;
-    if (full <= BOTTOM - MARGIN) this.ensure(full);
+    if (full <= this.bottom - MARGIN) this.ensure(full);
 
     let i = 0;
     while (i < lines.length) {
-      const room = Math.max(1, Math.floor((BOTTOM - this.y - 5) / lineH));
+      const room = Math.max(1, Math.floor((this.bottom - this.y - 5) / lineH));
       const chunk = lines.slice(i, i + room);
       const h = chunk.length * lineH + 5;
       this.doc.setFillColor(250, 250, 250);
       this.doc.setDrawColor(224, 224, 224);
       this.doc.setLineWidth(0.2);
-      this.doc.roundedRect(MARGIN, this.y, CONTENT_W, h, 1, 1, "FD");
+      this.doc.roundedRect(MARGIN, this.y, this.cw, h, 1, 1, "FD");
       this.font(size);
       chunk.forEach((ln, j) => this.doc.text(ln, MARGIN + 3, this.y + 2.5 + lineH * (j + 0.8)));
       i += chunk.length;
@@ -382,81 +410,106 @@ class DomPdfWriter {
   }
 
   private async radiographs(mount: HTMLElement): Promise<void> {
-    const cols = 5;
     const gap = 2;
-    const cellW = (CONTENT_W - gap * (cols - 1)) / cols;
-    const frameH = cellW * 0.78;
 
     for (const child of Array.from(mount.children) as HTMLElement[]) {
       if (child.matches(".rtg-r-jaw")) {
         this.ensure(5);
         this.font(7.5, true, [102, 102, 102]);
-        this.doc.text((child.textContent || "").trim().toUpperCase(), PAGE_W / 2, this.y + 3, { align: "center" });
+        this.doc.text((child.textContent || "").trim().toUpperCase(), this.pw / 2, this.y + 3, { align: "center" });
         this.y += 5;
       } else if (child.matches(".rtg-r-row")) {
         const cells = Array.from(child.querySelectorAll(".rtg-r-cell")) as HTMLElement[];
-        const labelLines = cells.map((c) => this.cellText(c, cellW));
-        const textH = Math.max(...labelLines.map((l) => l.length)) * 3.2 + 1;
+        const cols = Number(child.dataset.cols) || cells.length || 1;
+        const cellW = (this.cw - gap * (cols - 1)) / cols;
+        const frameH = Math.min(cellW * 0.9, 60);
+        const labelLines = cells.map((c) => (c.matches(".rtg-r-skip") ? [] : this.cellText(c, cellW)));
+        const textH = Math.max(0, ...labelLines.map((l) => l.length)) * 3.2 + 1;
         this.ensure(frameH + textH + gap);
         for (let i = 0; i < cells.length; i++) {
+          // A skipped position stays blank so the films line up with the other jaw
+          if (cells[i].matches(".rtg-r-skip")) continue;
           const x = MARGIN + i * (cellW + gap);
-          this.doc.setFillColor(0, 0, 0);
-          this.doc.setDrawColor(153, 153, 153);
-          this.doc.setLineWidth(0.2);
-          this.doc.rect(x, this.y, cellW, frameH, "FD");
           const img = cells[i].querySelector("img") as HTMLImageElement | null;
-          if (img && img.src.startsWith("data:image")) {
-            try {
-              await img.decode().catch(() => undefined);
-              const iw = img.naturalWidth || 4;
-              const ih = img.naturalHeight || 3;
-              const s = Math.min(cellW / iw, frameH / ih);
-              const dw = iw * s;
-              const dh = ih * s;
-              const fmt = img.src.startsWith("data:image/png") ? "PNG" : "JPEG";
-              this.doc.addImage(img.src, fmt, x + (cellW - dw) / 2, this.y + (frameH - dh) / 2, dw, dh);
-            } catch {
-              /* an undecodable film leaves the black frame */
-            }
-          } else {
-            this.font(7, false, MUTED);
-            this.doc.text("ni posnetka", x + cellW / 2, this.y + frameH / 2 + 1, { align: "center" });
-          }
+          await this.film(img, x, this.y, cellW, frameH);
           this.font(6.5);
           labelLines[i].forEach((ln, j) => this.doc.text(ln, x + cellW / 2, this.y + frameH + 3 + j * 3.2, { align: "center" }));
         }
         this.y += frameH + textH + gap;
+      } else if (child.matches(".rtg-r-composite-frame")) {
+        const img = child.querySelector("img") as HTMLImageElement | null;
+        // Leave room below for the lower-jaw label, the side hints and the
+        // start of the opinion, so a short opinion shares the page
+        const below = 45;
+        let maxH = this.bottom - this.y - below;
+        if (maxH < 60) {
+          this.newPage();
+          maxH = this.bottom - this.y - below;
+        }
+        let w = this.cw;
+        let h = Math.min(maxH, w * 0.5);
+        if (img && img.src.startsWith("data:image")) {
+          await img.decode().catch(() => undefined);
+          const iw = img.naturalWidth || 2;
+          const ih = img.naturalHeight || 1;
+          const sc = Math.min(this.cw / iw, maxH / ih);
+          w = iw * sc;
+          h = ih * sc;
+        }
+        await this.film(img, MARGIN + (this.cw - w) / 2, this.y, w, h);
+        this.y += h + 1;
       } else if (child.matches(".rtg-r-sides")) {
         const spans = Array.from(child.querySelectorAll("span"));
         this.font(7, false, [119, 119, 119]);
         if (spans[0]) this.doc.text((spans[0].textContent || "").trim(), MARGIN, this.y + 3);
-        if (spans[1]) this.doc.text((spans[1].textContent || "").trim(), PAGE_W - MARGIN, this.y + 3, { align: "right" });
+        if (spans[1]) this.doc.text((spans[1].textContent || "").trim(), this.pw - MARGIN, this.y + 3, { align: "right" });
         this.y += 6;
       }
     }
     this.y += 2;
   }
 
+  /** A black frame with the film fitted inside it, or a "ni posnetka" note. */
+  private async film(img: HTMLImageElement | null, x: number, y: number, w: number, h: number): Promise<void> {
+    this.doc.setFillColor(0, 0, 0);
+    this.doc.setDrawColor(153, 153, 153);
+    this.doc.setLineWidth(0.2);
+    this.doc.rect(x, y, w, h, "FD");
+    if (img && img.src.startsWith("data:image")) {
+      try {
+        await img.decode().catch(() => undefined);
+        const iw = img.naturalWidth || 4;
+        const ih = img.naturalHeight || 3;
+        const s = Math.min(w / iw, h / ih);
+        const dw = iw * s;
+        const dh = ih * s;
+        const fmt = img.src.startsWith("data:image/png") ? "PNG" : "JPEG";
+        this.doc.addImage(img.src, fmt, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+      } catch {
+        /* an undecodable film leaves the black frame */
+      }
+    } else {
+      this.font(7, false, MUTED);
+      this.doc.text("ni posnetka", x + w / 2, y + h / 2 + 1, { align: "center" });
+    }
+  }
+
   private cellText(cell: HTMLElement, width: number): string[] {
     this.font(6.5);
     const label = (cell.querySelector(".rtg-r-label")?.textContent || "").replace(/\s+/g, " ").trim();
-    const caption = (cell.querySelector(".rtg-r-caption")?.textContent || "").replace(/\s+/g, " ").trim();
-    return [
-      ...(this.doc.splitTextToSize(label, width) as string[]),
-      ...(caption ? (this.doc.splitTextToSize(caption, width) as string[]) : []),
-    ];
+    return this.doc.splitTextToSize(label, width) as string[];
   }
 
   private blankBox(): void {
     // Leave room below for the report footer so it does not spill onto a page of its own
-    const h = BOTTOM - this.y - 18;
+    const h = this.bottom - this.y - 18;
     if (h < 40) {
       this.newPage();
       return this.blankBox();
     }
     this.doc.setDrawColor(153, 153, 153);
     this.doc.setLineWidth(0.3);
-    this.doc.roundedRect(MARGIN, this.y, CONTENT_W, h, 1.5, 1.5, "S");
+    this.doc.roundedRect(MARGIN, this.y, this.cw, h, 1.5, 1.5, "S");
     this.y += h + 2;
   }
 
@@ -465,7 +518,7 @@ class DomPdfWriter {
     this.ensure(26);
     this.y += 14;
     const gap = 8;
-    const colW = (CONTENT_W - gap * (labels.length - 1)) / labels.length;
+    const colW = (this.cw - gap * (labels.length - 1)) / labels.length;
     labels.forEach((label, i) => {
       const x = MARGIN + i * (colW + gap);
       this.doc.setDrawColor(51, 51, 51);
@@ -481,9 +534,9 @@ class DomPdfWriter {
     this.ensure(8);
     this.doc.setDrawColor(208, 208, 208);
     this.doc.setLineWidth(0.2);
-    this.doc.line(MARGIN, this.y, PAGE_W - MARGIN, this.y);
+    this.doc.line(MARGIN, this.y, this.pw - MARGIN, this.y);
     this.font(8, false, MUTED);
-    this.doc.text((el.textContent || "").trim(), PAGE_W - MARGIN, this.y + 4, { align: "right" });
+    this.doc.text((el.textContent || "").trim(), this.pw - MARGIN, this.y + 4, { align: "right" });
     this.y += 8;
   }
 
@@ -491,8 +544,11 @@ class DomPdfWriter {
     const n = this.doc.getNumberOfPages();
     for (let p = 1; p <= n; p++) {
       this.doc.setPage(p);
+      // Pages differ in orientation, so each one is measured on its own
+      const w = this.doc.internal.pageSize.getWidth();
+      const h = this.doc.internal.pageSize.getHeight();
       this.font(7.5, false, MUTED);
-      this.doc.text(`${p} / ${n}`, PAGE_W / 2, PAGE_H - 7, { align: "center" });
+      this.doc.text(`${p} / ${n}`, w / 2, h - 7, { align: "center" });
     }
   }
 }

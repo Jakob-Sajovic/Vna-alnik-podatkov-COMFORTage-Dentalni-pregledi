@@ -17,9 +17,18 @@ import {
   FurcationScore,
   ICDASRootCariesScore,
   RadiographData,
-  RadiographSlotId,
+  RadiographImage,
+  LegacyRadiographSlotId,
+  LegacyRadiographImage,
 } from "../model/types";
-import { ALL_TEETH, SCHEMA_VERSION, PROBING_ALL_SITES, ROOT_CARIES_ALL_TEETH, rootCariesEntryCount, RADIOGRAPH_SLOTS, RADIOGRAPH_SLOT_IDS } from "../model/constants";
+import { ALL_TEETH, SCHEMA_VERSION, PROBING_ALL_SITES, ROOT_CARIES_ALL_TEETH, rootCariesEntryCount, LEGACY_RADIOGRAPH_SLOTS } from "../model/constants";
+import {
+  RADIOGRAPH_JAWS,
+  normalizeRadiographs,
+  figuresToFlatText,
+  flatTextToFigures,
+  makeFigure,
+} from "../model/radiographs";
 import {
   makeDefaultProbingData,
   makeDefaultRootCariesData,
@@ -122,11 +131,9 @@ export function getColumnHeaders(): string[] {
   h.push("fdi_gender", "fdi_age", "fdi_smoking", "fdi_diabetes",
     "fdi_toothLoss", "fdi_plaque", "fdi_bleeding", "fdi_probingDepth", "fdi_country");
 
-  // Radiographs — text only; the image payloads live on DentalExam_Slike
-  h.push("radio_opinion");
-  for (const slot of RADIOGRAPH_SLOTS) {
-    h.push(`radio_${slot.id}_file`, `radio_${slot.id}_caption`);
-  }
+  // Radiographs — text only; the image payloads live on DentalExam_Slike.
+  // Each jaw's films share one cell: "18–16: annotation | — | 15–13: …"
+  h.push("radio_mode", "radio_opinion", "radio_unlocked", "radio_composite_file", "radio_upper", "radio_lower");
 
   // Full JSON backup for reliable reload
   h.push("_json");
@@ -231,13 +238,16 @@ export function sessionToRow(s: ExaminationSession): (string | number | boolean 
   row.push(fdi.gender, fdi.age, fdi.smoking, fdi.diabetes,
     fdi.toothLoss, fdi.plaque, fdi.bleeding, fdi.probingDepth, fdi.country);
 
-  // Radiographs — file name and caption per slot, images go to their own sheet
-  const radio = s.radiographs || { images: {}, opinion: "" };
-  row.push(radio.opinion || "");
-  for (const slot of RADIOGRAPH_SLOTS) {
-    const img = radio.images[slot.id];
-    row.push(img ? img.fileName : "", img ? img.caption : "");
-  }
+  // Radiographs — mode, opinion and film locations; images go to their own sheet
+  const radio = normalizeRadiographs(s.radiographs);
+  row.push(
+    radio.mode || "",
+    radio.opinion || "",
+    radio.unlocked,
+    radio.composite ? radio.composite.fileName : "",
+    figuresToFlatText(radio.upper),
+    figuresToFlatText(radio.lower)
+  );
 
   // JSON backup. Image data URLs are excluded — they would blow past Excel's
   // 32 767-character cell limit on their own.
@@ -253,15 +263,17 @@ export function sessionToRow(s: ExaminationSession): (string | number | boolean 
  * carry the same data and the readers already fall back to them.
  */
 function buildJsonBackup(s: ExaminationSession): string {
-  const radio = s.radiographs || { images: {}, opinion: "" };
-  const slim: Record<string, unknown> = {};
-  for (const id of RADIOGRAPH_SLOT_IDS) {
-    const img = radio.images[id];
-    if (!img) continue;
-    slim[id] = { fileName: img.fileName, width: img.width, height: img.height, caption: img.caption };
-  }
+  const radio = normalizeRadiographs(s.radiographs);
+  const slim = (img: RadiographImage | null): RadiographImage | null =>
+    img ? { dataUrl: "", fileName: img.fileName, width: img.width, height: img.height } : null;
 
-  const copy = { ...s, radiographs: { opinion: radio.opinion || "", images: slim } };
+  const slimRadio: RadiographData = {
+    ...radio,
+    composite: slim(radio.composite),
+    upper: radio.upper.map((f) => ({ ...f, image: slim(f.image) })),
+    lower: radio.lower.map((f) => ({ ...f, image: slim(f.image) })),
+  };
+  const copy = { ...s, radiographs: slimRadio };
   const json = JSON.stringify(copy);
   if (json.length > MAX_CELL_CHARS) {
     // eslint-disable-next-line no-console
@@ -320,10 +332,15 @@ function calcPresentTeeth(s: ExaminationSession): number {
   return present;
 }
 // ── Radiograph images: chunked base64 on a dedicated sheet ────────
+// Each image is keyed in the "slot" column: "C" for the composite image,
+// "U<n>" / "L<n>" for the n-th position (1-based, skipped positions counted)
+// of the upper / lower row. Files from the old 10-slot mount use T1–T5, B1–B5.
+
+const COMPOSITE_KEY = "C";
+const JAW_KEY: Record<"upper" | "lower", string> = { upper: "U", lower: "L" };
 
 interface ImageChunkRow {
-  sessionId: string;
-  slot: RadiographSlotId;
+  key: string;
   part: number;
   parts: number;
   fileName: string;
@@ -333,27 +350,41 @@ interface ImageChunkRow {
   data: string;
 }
 
+export interface StoredRadiographImage {
+  image: RadiographImage;
+  caption: string;
+}
+
+/** Images read off the image sheet, by slot key. */
+export type StoredRadiographImages = Record<string, StoredRadiographImage>;
+
 /** Split each stored image into cell-sized base64 chunks, one chunk per row. */
 export function radiographsToImageRows(s: ExaminationSession): (string | number)[][] {
-  const radio = s.radiographs;
-  if (!radio) return [];
+  if (!s.radiographs) return [];
+  const radio = normalizeRadiographs(s.radiographs);
+
+  const entries: { key: string; img: RadiographImage; caption: string }[] = [];
+  if (radio.composite) entries.push({ key: COMPOSITE_KEY, img: radio.composite, caption: "" });
+  for (const jaw of RADIOGRAPH_JAWS) {
+    radio[jaw].forEach((f, i) => {
+      if (f.image) entries.push({ key: `${JAW_KEY[jaw]}${i + 1}`, img: f.image, caption: f.annotation || "" });
+    });
+  }
 
   const rows: (string | number)[][] = [];
-  for (const slot of RADIOGRAPH_SLOTS) {
-    const img = radio.images[slot.id];
-    if (!img || !img.dataUrl) continue;
-
+  for (const { key, img, caption } of entries) {
+    if (!img.dataUrl) continue;
     const parts = Math.max(1, Math.ceil(img.dataUrl.length / IMAGE_CHUNK_CHARS));
     for (let i = 0; i < parts; i++) {
       rows.push([
         s.sessionId,
-        slot.id,
+        key,
         i + 1,
         parts,
         img.fileName || "",
         img.width || 0,
         img.height || 0,
-        i === 0 ? (img.caption || "") : "",
+        i === 0 ? caption : "",
         img.dataUrl.slice(i * IMAGE_CHUNK_CHARS, (i + 1) * IMAGE_CHUNK_CHARS),
       ]);
     }
@@ -361,13 +392,13 @@ export function radiographsToImageRows(s: ExaminationSession): (string | number)
   return rows;
 }
 
-/** Reassemble chunk rows belonging to one session back into image records. */
+/** Reassemble chunk rows belonging to one session back into images, by slot key. */
 export function imageRowsToRadiographs(
   headers: string[],
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   rows: any[][],
   sessionId: string
-): RadiographData["images"] {
+): StoredRadiographImages {
   const idx = (name: string) => headers.indexOf(name);
   const cSession = idx("session_id");
   const cSlot = idx("slot");
@@ -380,14 +411,13 @@ export function imageRowsToRadiographs(
   const cData = idx("data");
   if (cSession < 0 || cSlot < 0 || cData < 0) return {};
 
-  const chunks: ImageChunkRow[] = [];
+  const byKey: Record<string, ImageChunkRow[]> = {};
   for (const r of rows) {
     if (String(r[cSession] ?? "") !== sessionId) continue;
-    const slot = String(r[cSlot] ?? "") as RadiographSlotId;
-    if (RADIOGRAPH_SLOT_IDS.indexOf(slot) < 0) continue;
-    chunks.push({
-      sessionId,
-      slot,
+    const key = String(r[cSlot] ?? "").trim();
+    if (!key) continue;
+    (byKey[key] = byKey[key] || []).push({
+      key,
       part: Number(r[cPart] ?? 1) || 1,
       parts: Number(r[cParts] ?? 1) || 1,
       fileName: String(r[cFile] ?? ""),
@@ -398,25 +428,72 @@ export function imageRowsToRadiographs(
     });
   }
 
-  const images: RadiographData["images"] = {};
-  for (const slot of RADIOGRAPH_SLOT_IDS) {
-    const forSlot = chunks.filter((c) => c.slot === slot).sort((a, b) => a.part - b.part);
-    if (forSlot.length === 0) continue;
+  const images: StoredRadiographImages = {};
+  for (const key of Object.keys(byKey)) {
+    const chunks = byKey[key].sort((a, b) => a.part - b.part);
     // A partially written image (interrupted save) is dropped rather than shown broken.
-    if (forSlot.length !== forSlot[0].parts) continue;
-
-    images[slot] = {
-      dataUrl: forSlot.map((c) => c.data).join(""),
-      fileName: forSlot[0].fileName,
-      width: forSlot[0].width,
-      height: forSlot[0].height,
-      caption: forSlot[0].caption,
+    if (chunks.length !== chunks[0].parts) continue;
+    images[key] = {
+      image: {
+        dataUrl: chunks.map((c) => c.data).join(""),
+        fileName: chunks[0].fileName,
+        width: chunks[0].width,
+        height: chunks[0].height,
+      },
+      caption: chunks[0].caption,
     };
   }
   return images;
 }
 
-/** Append this session's image chunks to DentalExam_Slike, creating it if needed. */
+/**
+ * Put the images read off the image sheet back into a loaded session's
+ * radiograph data (whose text came from _json or the flat columns), and
+ * upgrade data saved with the old 10-slot mount. Image records the sheet did
+ * not supply are dropped, since without pixels they cannot be shown.
+ */
+export function restoreRadiographs(s: ExaminationSession, stored: StoredRadiographImages): void {
+  const radio = s.radiographs || ({} as RadiographData);
+
+  // Old 10-slot mount: merge sheet images into the legacy map, then migrate
+  const legacyIds = LEGACY_RADIOGRAPH_SLOTS.map((d) => d.id);
+  for (const id of legacyIds) {
+    const got = stored[id];
+    if (!got) continue;
+    const images = (radio.images = radio.images || {});
+    const prev = images[id];
+    images[id] = { ...got.image, caption: prev?.caption || got.caption };
+  }
+  if (radio.images) {
+    for (const id of Object.keys(radio.images) as LegacyRadiographSlotId[]) {
+      const img = radio.images[id] as LegacyRadiographImage;
+      if (!stored[id]) img.dataUrl = "";
+    }
+  }
+  s.radiographs = normalizeRadiographs(radio);
+  const r = s.radiographs;
+
+  // Records carried over without pixels (the _json backup holds none) are dropped
+  const keep = (img: RadiographImage | null) => (img && img.dataUrl ? img : null);
+  r.composite = stored[COMPOSITE_KEY] ? stored[COMPOSITE_KEY].image : keep(r.composite);
+  for (const jaw of RADIOGRAPH_JAWS) {
+    const figures = r[jaw];
+    figures.forEach((f, i) => {
+      const got = stored[`${JAW_KEY[jaw]}${i + 1}`];
+      f.image = f.skip ? null : got ? got.image : keep(f.image);
+    });
+    // Images beyond the known positions (flat-column fallback lost them): append
+    for (const key of Object.keys(stored)) {
+      const m = new RegExp(`^${JAW_KEY[jaw]}(\\d+)$`).exec(key);
+      if (!m) continue;
+      const i = Number(m[1]) - 1;
+      if (i < figures.length) continue;
+      while (figures.length < i) figures.push(makeFigure());
+      figures.push({ ...makeFigure(stored[key].image), annotation: stored[key].caption });
+    }
+  }
+}
+
 // ── Row → Session reconstruction (fallback) ───────────────────────
 
 export function rowToSession(
@@ -476,12 +553,21 @@ export function rowToSession(
   };
 
   // Radiograph text columns — image payloads are restored from the image sheet
-  session.radiographs.opinion = str("radio_opinion");
-  for (const slot of RADIOGRAPH_SLOTS) {
+  const radio = session.radiographs;
+  const mode = str("radio_mode");
+  radio.mode = mode === "composite" || mode === "partial" ? mode : null;
+  radio.opinion = str("radio_opinion");
+  radio.unlocked = bool("radio_unlocked");
+  for (const jaw of RADIOGRAPH_JAWS) {
+    radio[jaw] = flatTextToFigures(jaw, str(jaw === "upper" ? "radio_upper" : "radio_lower"));
+  }
+  // Files saved with the old 10-slot mount
+  for (const slot of LEGACY_RADIOGRAPH_SLOTS) {
     const fileName = str(`radio_${slot.id}_file`);
     const caption = str(`radio_${slot.id}_caption`);
     if (!fileName && !caption) continue;
-    session.radiographs.images[slot.id] = { dataUrl: "", fileName, width: 0, height: 0, caption };
+    radio.images = radio.images || {};
+    radio.images[slot.id] = { dataUrl: "", fileName, width: 0, height: 0, caption };
   }
 
   // Plaque & bleeding

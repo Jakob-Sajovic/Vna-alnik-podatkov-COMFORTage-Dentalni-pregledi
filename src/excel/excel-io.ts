@@ -1,6 +1,6 @@
 /* global Excel */
 
-import { ExaminationSession, RadiographData } from "../model/types";
+import { ExaminationSession } from "../model/types";
 import {
   SHEET_NAME,
   IMAGE_SHEET_NAME,
@@ -10,6 +10,8 @@ import {
   rowToSession,
   radiographsToImageRows,
   imageRowsToRadiographs,
+  restoreRadiographs,
+  StoredRadiographImages,
 } from "./session-codec";
 import {
   makeDefaultProbingData,
@@ -75,7 +77,7 @@ async function readRadiographImages(
   context: Excel.RequestContext,
   sheet: Excel.Worksheet,
   sessionId: string
-): Promise<RadiographData["images"]> {
+): Promise<StoredRadiographImages> {
   const used = sheet.getUsedRangeOrNullObject();
   used.load("rowCount, columnCount");
   await context.sync();
@@ -246,20 +248,21 @@ export async function loadSessionFromExcel(): Promise<ExaminationSession | null>
       if (!result.icdasRootCaries) result.icdasRootCaries = makeDefaultICDASRootCariesData();
       if (!result.radiographs) result.radiographs = makeDefaultRadiographs();
       if (!result.ohipExtra) result.ohipExtra = makeDefaultOhipExtra();
-      if (!result.radiographs.images) result.radiographs.images = {};
     }
 
     // Radiograph images live on their own sheet, keyed by session id
     if (result) {
+      let stored: StoredRadiographImages = {};
       const imgSheet = context.workbook.worksheets.getItemOrNullObject(IMAGE_SHEET_NAME);
       await context.sync();
       if (!imgSheet.isNullObject) {
         try {
-          result.radiographs.images = await readRadiographImages(context, imgSheet, result.sessionId);
+          stored = await readRadiographImages(context, imgSheet, result.sessionId);
         } catch {
           // A missing or malformed image sheet must never block loading the exam.
         }
       }
+      restoreRadiographs(result, stored);
     }
   });
 
@@ -336,7 +339,6 @@ export async function loadSessionFromFile(base64: string): Promise<ExaminationSe
       if (!result.icdasRootCaries) result.icdasRootCaries = makeDefaultICDASRootCariesData();
       if (!result.radiographs) result.radiographs = makeDefaultRadiographs();
       if (!result.ohipExtra) result.ohipExtra = makeDefaultOhipExtra();
-      if (!result.radiographs.images) result.radiographs.images = {};
     }
 
     // Clean up imported sheet
@@ -351,11 +353,13 @@ export async function loadSessionFromFile(base64: string): Promise<ExaminationSe
   // that happens inside the Excel.run callback above.
   const loaded = result as ExaminationSession | null;
   if (loaded) {
+    let stored: StoredRadiographImages = {};
     try {
-      loaded.radiographs.images = await loadRadiographImagesFromFile(base64, loaded.sessionId);
+      stored = await loadRadiographImagesFromFile(base64, loaded.sessionId);
     } catch {
       // No image sheet, or an unreadable one — the exam still loads without films.
     }
+    restoreRadiographs(loaded, stored);
   }
 
   return result;
@@ -364,8 +368,8 @@ export async function loadSessionFromFile(base64: string): Promise<ExaminationSe
 async function loadRadiographImagesFromFile(
   base64: string,
   sessionId: string
-): Promise<RadiographData["images"]> {
-  let images: RadiographData["images"] = {};
+): Promise<StoredRadiographImages> {
+  let images: StoredRadiographImages = {};
 
   await Excel.run(async (context) => {
     const sheets = context.workbook.worksheets;

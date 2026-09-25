@@ -24,6 +24,7 @@ import {
   NotesData,
   RadiographData,
 } from "./types";
+import { makeDefaultRadiographs as createDefaultRadiographs, normalizeRadiographs } from "./radiographs";
 import { ALL_TEETH, SCHEMA_VERSION, ROOT_CARIES_ALL_TEETH, PROBING_ALL_SITES, rootCariesEntryCount } from "./constants";
 
 type ChangeListener = () => void;
@@ -163,10 +164,6 @@ export function makeDefaultFdiQuestionnaire(): FdiQuestionnaireData {
   return createDefaultFdiQuestionnaire();
 }
 
-function createDefaultRadiographs(): RadiographData {
-  return { images: {}, opinion: "" };
-}
-
 export function makeDefaultOhipExtra(): OhipExtraData {
   return { healthRating: "", appearanceRating: "", comment: "" };
 }
@@ -294,7 +291,8 @@ export class SessionState {
 
   getRadiographs(): RadiographData {
     const s = this.getSession();
-    if (!s.radiographs) s.radiographs = createDefaultRadiographs();
+    // Also upgrades sessions restored from local storage in an older shape
+    s.radiographs = normalizeRadiographs(s.radiographs);
     return s.radiographs;
   }
 

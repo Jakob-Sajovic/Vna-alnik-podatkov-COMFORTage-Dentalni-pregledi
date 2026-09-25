@@ -11,6 +11,8 @@ import {
   rowToSession,
   radiographsToImageRows,
   imageRowsToRadiographs,
+  restoreRadiographs,
+  StoredRadiographImages,
 } from "../excel/session-codec";
 import {
   makeDefaultProbingData,
@@ -86,16 +88,16 @@ export async function readWorkbook(file: File): Promise<ExaminationSession | nul
   if (!session.icdasRootCaries) session.icdasRootCaries = makeDefaultICDASRootCariesData();
   if (!session.radiographs) session.radiographs = makeDefaultRadiographs();
   if (!session.ohipExtra) session.ohipExtra = makeDefaultOhipExtra();
-  if (!session.radiographs.images) session.radiographs.images = {};
 
   // Radiograph payloads live on their own sheet
+  let stored: StoredRadiographImages = {};
   const imageSheet = wb.Sheets[IMAGE_SHEET_NAME];
   if (imageSheet) {
     try {
       const imgGrid = XLSX.utils.sheet_to_json<unknown[]>(imageSheet, { header: 1, raw: true, defval: "" });
       if (imgGrid.length >= 2) {
         const imgHeaders = (imgGrid[0] as unknown[]).map((h) => String(h ?? ""));
-        session.radiographs.images = imageRowsToRadiographs(
+        stored = imageRowsToRadiographs(
           imgHeaders,
           imgGrid.slice(1) as unknown[][],
           session.sessionId
@@ -105,6 +107,7 @@ export async function readWorkbook(file: File): Promise<ExaminationSession | nul
       // An unreadable image sheet must not block loading the examination.
     }
   }
+  restoreRadiographs(session, stored);
 
   return session;
 }

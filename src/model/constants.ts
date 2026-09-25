@@ -1,4 +1,4 @@
-import { FdiToothNumber, SpecialCaseCode, ProbingSite, RadiographSlotId } from "./types";
+import { FdiToothNumber, SpecialCaseCode, ProbingSite, LegacyRadiographSlotId, RadiographJaw } from "./types";
 
 // Schema version for data persistence
 export const SCHEMA_VERSION = 2;
@@ -274,39 +274,48 @@ export function rootCariesLabels(tooth: FdiToothNumber): string[] {
   return [];
 }
 
-// ── Radiograph mount (full-mouth periapical, 10 films) ────────────
-// Layout mirrors the reference mount: 2 rows x 5 columns, viewer's left =
-// patient's right. `slika` records the figure numbers used in the original
-// quadrant-by-quadrant reference deck (two films are shared between quadrants).
-export interface RadiographSlotDef {
-  id: RadiographSlotId;
-  order: number;     // 1-10, the order bulk-selected files are assigned in
-  row: "top" | "bottom";
-  label: string;     // short label shown inside the slot
-  region: string;    // full Slovenian description
-  quadrant: string;  // quadrant(s) the film covers
-  slika: string;     // figure number(s) in the reference deck
+// ── Radiographs ──────────────────────────────────────────────────
+// Teeth offered by a figure's location picker, in the order they appear on
+// the mount: viewer's left = patient's right.
+export const RADIOGRAPH_JAW_TEETH: Record<RadiographJaw, FdiToothNumber[]> = {
+  upper: [...UPPER_RIGHT, ...UPPER_LEFT],
+  lower: [...LOWER_JAW_MIRRORED],
+};
+
+export const RADIOGRAPH_JAW_LABELS: Record<RadiographJaw, string> = {
+  upper: "Zgornja čeljust",
+  lower: "Spodnja čeljust",
+};
+
+// Short prefix used to number figures: Z1, Z2 … / S1, S2 …
+export const RADIOGRAPH_JAW_PREFIX: Record<RadiographJaw, string> = {
+  upper: "Z",
+  lower: "S",
+};
+
+// The fixed 10-film mount used before the composite/partial modes, with the
+// teeth each film covered. Used only to migrate sessions saved with it.
+export interface LegacyRadiographSlotDef {
+  id: LegacyRadiographSlotId;
+  jaw: RadiographJaw;
+  from: FdiToothNumber;
+  to: FdiToothNumber;
 }
 
-export const RADIOGRAPH_SLOTS: RadiographSlotDef[] = [
-  { id: "T1", order: 1, row: "top", label: "Zg. D kočniki", region: "Zgoraj desno – kočniki", quadrant: "I", slika: "1" },
-  { id: "T2", order: 2, row: "top", label: "Zg. D ličniki", region: "Zgoraj desno – ličniki in podočnik", quadrant: "I", slika: "2" },
-  { id: "T3", order: 3, row: "top", label: "Zg. sekalci", region: "Zgoraj – sekalci", quadrant: "I / II", slika: "3 = 4" },
-  { id: "T4", order: 4, row: "top", label: "Zg. L ličniki", region: "Zgoraj levo – ličniki in podočnik", quadrant: "II", slika: "5" },
-  { id: "T5", order: 5, row: "top", label: "Zg. L kočniki", region: "Zgoraj levo – kočniki", quadrant: "II", slika: "6" },
-  { id: "B1", order: 6, row: "bottom", label: "Sp. D kočniki", region: "Spodaj desno – kočniki", quadrant: "IV", slika: "10" },
-  { id: "B2", order: 7, row: "bottom", label: "Sp. D ličniki", region: "Spodaj desno – ličniki in podočnik", quadrant: "IV", slika: "11" },
-  { id: "B3", order: 8, row: "bottom", label: "Sp. sekalci", region: "Spodaj – sekalci", quadrant: "III / IV", slika: "7 = 12" },
-  { id: "B4", order: 9, row: "bottom", label: "Sp. L ličniki", region: "Spodaj levo – ličniki in podočnik", quadrant: "III", slika: "8" },
-  { id: "B5", order: 10, row: "bottom", label: "Sp. L kočniki", region: "Spodaj levo – kočniki", quadrant: "III", slika: "9" },
+export const LEGACY_RADIOGRAPH_SLOTS: LegacyRadiographSlotDef[] = [
+  { id: "T1", jaw: "upper", from: 18, to: 16 },
+  { id: "T2", jaw: "upper", from: 15, to: 13 },
+  { id: "T3", jaw: "upper", from: 12, to: 22 },
+  { id: "T4", jaw: "upper", from: 23, to: 25 },
+  { id: "T5", jaw: "upper", from: 26, to: 28 },
+  { id: "B1", jaw: "lower", from: 48, to: 46 },
+  { id: "B2", jaw: "lower", from: 45, to: 43 },
+  { id: "B3", jaw: "lower", from: 42, to: 32 },
+  { id: "B4", jaw: "lower", from: 33, to: 35 },
+  { id: "B5", jaw: "lower", from: 36, to: 38 },
 ];
 
-export const RADIOGRAPH_SLOT_IDS: RadiographSlotId[] = RADIOGRAPH_SLOTS.map((s) => s.id);
-
-export function radiographSlotsByRow(row: "top" | "bottom"): RadiographSlotDef[] {
-  return RADIOGRAPH_SLOTS.filter((s) => s.row === row);
-}
-
 // Client-side compression applied before an image enters the session.
-export const RADIOGRAPH_MAX_DIMENSION = 1400; // px on the longest edge
+export const RADIOGRAPH_MAX_DIMENSION = 1400; // px on the longest edge, partial films
+export const RADIOGRAPH_COMPOSITE_MAX_DIMENSION = 2800; // a whole-mouth scan needs more detail
 export const RADIOGRAPH_JPEG_QUALITY = 0.82;

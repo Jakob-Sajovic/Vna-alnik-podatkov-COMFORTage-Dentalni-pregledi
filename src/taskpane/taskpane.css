@@ -321,6 +321,11 @@ h2 {
   box-shadow: 0 0 0 1px #0078d4;
 }
 
+.form-textarea.error {
+  border-color: #a4262c;
+  box-shadow: 0 0 0 1px #a4262c;
+}
+
 /* ===== OHIP Components ===== */
 .ohip-score-bar {
   position: sticky;
@@ -1322,21 +1327,44 @@ tr.furc-disabled {
 .rtg-status-warn  { background: #fff4ce; color: #797673; border-color: #f2e0a0; }
 .rtg-status-error { background: #fed9cc; color: #a4262c; border-color: #f1707b; }
 
-/* The mount keeps its anatomical 5-across shape; the wrapper scrolls when
-   the task pane is too narrow to show it at full size. */
-.rtg-mount-wrap {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  margin-bottom: 12px;
-  padding-bottom: 4px;
+/* Mode chooser (nothing chosen yet) */
+.rtg-mode-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.rtg-mount {
-  min-width: 460px;
-  background: #f8f8f8;
-  border: 1px solid #e1dfdd;
+.rtg-mode-prompt { font-size: 13px; font-weight: 600; color: #323130; }
+
+.rtg-mode-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-height: 64px;
+  padding: 12px 14px;
+  text-align: left;
+  background: #fff;
+  border: 1px solid #8a8886;
   border-radius: 4px;
-  padding: 8px;
+  font-family: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rtg-mode-option:hover { border-color: #0078d4; background: #f3f9fd; }
+.rtg-mode-title { font-size: 15px; font-weight: 600; color: #323130; }
+.rtg-mode-desc { font-size: 12px; color: #605e5c; line-height: 1.35; }
+
+.rtg-mode-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: #323130;
 }
 
 .rtg-jaw-label {
@@ -1349,40 +1377,128 @@ tr.furc-disabled {
   margin: 2px 0 6px;
 }
 
-.rtg-mount-row + .rtg-jaw-label { margin-top: 8px; }
+.rtg-composite-frame + .rtg-jaw-label { margin: 6px 0 2px; }
 
-.rtg-mount-row {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 4px;
+/* Composite mode */
+.rtg-composite {
+  background: #f8f8f8;
+  border: 1px solid #e1dfdd;
+  border-radius: 4px;
+  padding: 8px;
   margin-bottom: 6px;
 }
 
-.rtg-slot {
-  position: relative;
+.rtg-composite-frame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 160px;
+  background: #000;
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.rtg-composite-frame img { width: 100%; height: auto; display: block; }
+.rtg-composite-frame .rtg-preview-empty { padding: 40px 0; }
+
+/* Partial mode: both rows share one horizontal scroller so that position n
+   of the upper row stays above position n of the lower row. */
+.rtg-mount-wrap {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #f8f8f8;
+  border: 1px solid #e1dfdd;
+  border-radius: 4px;
+  padding: 8px;
+  margin-bottom: 2px;
+}
+
+.rtg-rows { display: inline-flex; flex-direction: column; gap: 6px; min-width: 100%; }
+
+.rtg-row-label {
+  position: sticky;
+  left: 0;
+  align-self: flex-start;
+  font-size: 11px;
+  font-weight: 600;
+  color: #605e5c;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+}
+
+.rtg-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.rtg-row + .rtg-row { padding-top: 6px; border-top: 1px dashed #c8c6c4; }
+
+.rtg-fig {
+  flex: 0 0 150px;
+  width: 150px;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 3px;
-  padding: 4px 2px;
-  min-height: 110px;
+  gap: 4px;
+  padding: 4px;
   background: #fff;
   border: 1px solid #c8c6c4;
   border-radius: 4px;
+}
+
+.rtg-fig.selected { border-color: #0078d4; box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.3); }
+.rtg-fig.invalid { border-color: #a4262c; box-shadow: 0 0 0 1px #a4262c; }
+.rtg-fig.invalid select[data-field="from"] { border-color: #a4262c; background: #fdf3f4; }
+
+.rtg-fig-thumb {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: transparent;
   cursor: pointer;
   font-family: inherit;
   -webkit-tap-highlight-color: transparent;
-  transition: border-color 0.15s, box-shadow 0.15s;
 }
 
-.rtg-slot:hover { border-color: #0078d4; }
+.rtg-fig-skip { background: #faf9f8; border-style: dashed; }
 
-.rtg-slot.selected {
-  border-color: #0078d4;
-  box-shadow: 0 0 0 2px rgba(0, 120, 212, 0.3);
+.rtg-fig-skip .rtg-fig-thumb {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 90px;
 }
 
-.rtg-slot.empty { background: #faf9f8; border-style: dashed; }
+.rtg-fig-skip-text { font-size: 11px; color: #8a8886; font-style: italic; }
+
+.rtg-fig-add {
+  background: transparent;
+  border-style: dashed;
+  justify-content: center;
+}
+
+.rtg-fig-add .btn { width: 100%; min-height: 40px; }
+
+.rtg-fig-loc { display: flex; align-items: center; gap: 2px; }
+
+.rtg-fig-loc select {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 40px;
+  padding: 4px 2px;
+  font-size: 13px;
+}
+
+.rtg-fig-dash { color: #605e5c; font-size: 12px; }
+
+.rtg-fig-note {
+  min-height: 52px;
+  padding: 4px 6px;
+  font-size: 12px;
+  resize: vertical;
+}
 
 .rtg-slot-num {
   position: absolute;
@@ -1391,27 +1507,23 @@ tr.furc-disabled {
   font-size: 10px;
   font-weight: 700;
   color: #fff;
-  background: #605e5c;
+  background: #0078d4;
   border-radius: 3px;
   padding: 0 4px;
   line-height: 14px;
   z-index: 1;
 }
 
-.rtg-slot.filled .rtg-slot-num { background: #0078d4; }
-
 .rtg-slot-img {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 100%;
-  height: 62px;
+  height: 90px;
   background: #000;
   border-radius: 2px;
   overflow: hidden;
 }
-
-.rtg-slot.empty .rtg-slot-img { background: #edebe9; }
 
 .rtg-thumb {
   max-width: 100%;
@@ -1422,20 +1534,13 @@ tr.furc-disabled {
 
 .rtg-slot-placeholder { font-size: 20px; color: #a19f9d; line-height: 1; }
 
-.rtg-slot-label {
-  font-size: 9px;
-  color: #605e5c;
-  text-align: center;
-  line-height: 1.15;
-}
-
 .rtg-side-hints {
   display: flex;
   justify-content: space-between;
   font-size: 10px;
   color: #a19f9d;
   padding: 0 2px;
-  margin-top: 2px;
+  margin: 2px 0 12px;
 }
 
 /* Detail panel for the selected slot */
@@ -1518,3 +1623,5 @@ tr.furc-disabled {
   overflow: hidden;
   word-break: break-all;
 }
+
+.rtg-slot-file-missing { color: #a19f9d; font-family: inherit; font-style: italic; }

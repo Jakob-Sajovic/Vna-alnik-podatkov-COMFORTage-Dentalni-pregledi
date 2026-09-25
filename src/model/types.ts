@@ -118,24 +118,52 @@ export interface ICDASRootCariesToothData {
 }
 export type ICDASRootCariesData = Record<FdiToothNumber, ICDASRootCariesToothData>;
 
-// ── Radiographs (full-mouth periapical mount, 10 films) ──────────
-// Slot ids follow the radiographic mount: T = upper row, B = lower row,
-// columns 1–5 left→right as seen by the viewer (viewer left = patient right).
-export type RadiographSlotId =
-  | "T1" | "T2" | "T3" | "T4" | "T5"
-  | "B1" | "B2" | "B3" | "B4" | "B5";
+// ── Radiographs ──────────────────────────────────────────────────
+// Two ways of recording a patient's X-rays:
+//  - "composite": one image covering the whole mouth (e.g. a panoramic scan)
+//  - "partial":   any number of films in two rows, upper row = upper jaw,
+//                 lower row = lower jaw, viewer's left = patient's right.
+export type RadiographMode = "composite" | "partial";
+export type RadiographJaw = "upper" | "lower";
 
 export interface RadiographImage {
   dataUrl: string;   // compressed JPEG data URL, rotation already baked in
   fileName: string;
   width: number;
   height: number;
+}
+
+// One position in a partial-mode row. A skipped position holds no film; it
+// only shifts the films after it so they line up with the opposite jaw.
+export interface RadiographFigure {
+  skip: boolean;
+  image: RadiographImage | null;
+  toothFrom: FdiToothNumber | null;  // location: first tooth on the film
+  toothTo: FdiToothNumber | null;    // location: last tooth (null = single tooth)
+  annotation: string;
+}
+
+// Film ids of the fixed 10-slot mount used before the two modes existed.
+// Kept only to migrate sessions saved with it.
+export type LegacyRadiographSlotId =
+  | "T1" | "T2" | "T3" | "T4" | "T5"
+  | "B1" | "B2" | "B3" | "B4" | "B5";
+
+export interface LegacyRadiographImage extends RadiographImage {
   caption: string;
 }
 
 export interface RadiographData {
-  images: Partial<Record<RadiographSlotId, RadiographImage>>;
-  opinion: string;   // overall radiographic diagnosis / opinion
+  mode: RadiographMode | null;       // null until the operator picks one
+  composite: RadiographImage | null;
+  upper: RadiographFigure[];
+  lower: RadiographFigure[];
+  opinion: string;                   // overall radiographic diagnosis / opinion
+  // Required fields (figure location, or the opinion in composite mode) are
+  // flagged until filled in, unless the operator unlocks them for this patient.
+  unlocked: boolean;
+  // Legacy 10-slot mount; folded into `upper`/`lower` by normalizeRadiographs().
+  images?: Partial<Record<LegacyRadiographSlotId, LegacyRadiographImage>>;
 }
 
 // Free-text notes
