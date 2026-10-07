@@ -204,6 +204,10 @@ export class SessionState {
 
   private session: ExaminationSession | null = null;
   private listeners: ChangeListener[] = [];
+  // VPI/GBI surfaces cleared when a tooth was marked missing, kept so that
+  // choosing an implant code (90/91) afterwards brings them back. Entry order
+  // on the ICDAS tab is "Poseben primer" (defaults to 97, clears) then the code.
+  private clearedPB: Partial<Record<FdiToothNumber, { plaque: PBToothData; bleeding: PBToothData }>> = {};
 
   private constructor() {}
 
@@ -217,6 +221,7 @@ export class SessionState {
   // Create a new blank session
   newSession(): ExaminationSession {
     this.session = createBlankSession();
+    this.clearedPB = {};
     this.notifyListeners();
     return this.session;
   }
@@ -224,12 +229,14 @@ export class SessionState {
   // Load an existing session (e.g. from Excel)
   loadSession(data: ExaminationSession): void {
     this.session = data;
+    this.clearedPB = {};
     this.notifyListeners();
   }
 
   // Reset to no active session
   resetSession(): void {
     this.session = null;
+    this.clearedPB = {};
     this.notifyListeners();
   }
 
@@ -316,6 +323,13 @@ export class SessionState {
   setToothPresence(tooth: FdiToothNumber, present: boolean): void {
     const s = this.getSession();
 
+    // Remember the VPI/GBI surfaces being cleared (restored by setToothImplant)
+    if (!present && s.plaque[tooth].present) {
+      this.clearedPB[tooth] = { plaque: { ...s.plaque[tooth] }, bleeding: { ...s.bleeding[tooth] } };
+    } else if (present) {
+      delete this.clearedPB[tooth];
+    }
+
     // Plaque
     s.plaque[tooth].present = present;
     if (!present) {
@@ -389,9 +403,17 @@ export class SessionState {
   setToothImplant(tooth: FdiToothNumber, code: SpecialCaseCode): void {
     const s = this.getSession();
 
-    // Plaque / bleeding: the implant surfaces are examined — keep what is recorded
-    s.plaque[tooth].present = true;
-    s.bleeding[tooth].present = true;
+    // Plaque / bleeding: the implant surfaces are examined — keep what is recorded,
+    // and bring back what marking the tooth missing had cleared
+    const stash = this.clearedPB[tooth];
+    if (stash && !s.plaque[tooth].present) {
+      s.plaque[tooth] = { ...stash.plaque, present: true };
+      s.bleeding[tooth] = { ...stash.bleeding, present: true };
+    } else {
+      s.plaque[tooth].present = true;
+      s.bleeding[tooth].present = true;
+    }
+    delete this.clearedPB[tooth];
 
     // Probing: not applicable to an implant
     s.probing[tooth].present = false;
