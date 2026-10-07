@@ -23,9 +23,11 @@ import {
   OhipExtraData,
   NotesData,
   RadiographData,
+  SpecialCaseCode,
 } from "./types";
 import { makeDefaultRadiographs as createDefaultRadiographs, normalizeRadiographs } from "./radiographs";
 import { ALL_TEETH, SCHEMA_VERSION, ROOT_CARIES_ALL_TEETH, PROBING_ALL_SITES, rootCariesEntryCount } from "./constants";
+import { isImplantCode } from "./tooth-status";
 
 type ChangeListener = () => void;
 
@@ -366,16 +368,60 @@ export class SessionState {
       }
     }
 
-    // ICDAS
+    // ICDAS — a tooth marked missing from another tab becomes a plain missing
+    // tooth (97) unless it already carries a non-implant special code.
     if (!present) {
       s.icdas[tooth].status = "special";
-      if (!s.icdas[tooth].specialCode) {
+      if (!s.icdas[tooth].specialCode || isImplantCode(s.icdas[tooth].specialCode)) {
         s.icdas[tooth].specialCode = "97";
       }
     } else {
       s.icdas[tooth].status = "normal";
       s.icdas[tooth].specialCode = null;
     }
+
+    this.touch();
+  }
+
+  // Mark a tooth as an implant (ICDAS code 90/91). The natural tooth is missing,
+  // but plaque, bleeding and ICDAS surface codes stay recordable on the implant;
+  // probing, BOP, furcation and root caries are cleared and disabled.
+  setToothImplant(tooth: FdiToothNumber, code: SpecialCaseCode): void {
+    const s = this.getSession();
+
+    // Plaque / bleeding: the implant surfaces are examined — keep what is recorded
+    s.plaque[tooth].present = true;
+    s.bleeding[tooth].present = true;
+
+    // Probing: not applicable to an implant
+    s.probing[tooth].present = false;
+    for (const site of PROBING_ALL_SITES) {
+      s.probing[tooth][site as ProbingSite] = null;
+    }
+    s.probing[tooth].furcation = null;
+
+    if (s.bop && s.bop[tooth]) {
+      for (const site of PROBING_ALL_SITES) {
+        (s.bop[tooth] as Record<string, boolean>)[site] = false;
+      }
+    }
+
+    if (s.furcationInvolvement) {
+      const fiData = s.furcationInvolvement[tooth];
+      if (fiData) {
+        for (let i = 0; i < fiData.length; i++) fiData[i] = null;
+      }
+    }
+
+    if (s.icdasRootCaries && s.icdasRootCaries[tooth]) {
+      for (const site of PROBING_ALL_SITES) {
+        (s.icdasRootCaries[tooth] as Record<string, number | null>)[site] = null;
+      }
+    }
+
+    // ICDAS: special code, surfaces kept for entry
+    s.icdas[tooth].status = "special";
+    s.icdas[tooth].specialCode = code;
 
     this.touch();
   }

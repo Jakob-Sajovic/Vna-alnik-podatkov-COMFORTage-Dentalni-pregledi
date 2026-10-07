@@ -22,6 +22,7 @@ import {
   LegacyRadiographImage,
 } from "../model/types";
 import { ALL_TEETH, SCHEMA_VERSION, PROBING_ALL_SITES, ROOT_CARIES_ALL_TEETH, rootCariesEntryCount, LEGACY_RADIOGRAPH_SLOTS } from "../model/constants";
+import { isToothMissing } from "../model/tooth-status";
 import {
   RADIOGRAPH_JAWS,
   normalizeRadiographs,
@@ -320,14 +321,7 @@ function calcOhipTotal(ohip: (number | null)[]): number {
 function calcPresentTeeth(s: ExaminationSession): number {
   let present = 0;
   for (const t of ALL_TEETH) {
-    const isMissing =
-      (s.icdas[t].status === "special" &&
-        s.icdas[t].specialCode !== null &&
-        s.icdas[t].specialCode !== "96") ||
-      !s.plaque[t].present ||
-      !s.bleeding[t].present ||
-      !s.probing[t].present;
-    if (!isMissing) present++;
+    if (!isToothMissing(s, t)) present++;
   }
   return present;
 }

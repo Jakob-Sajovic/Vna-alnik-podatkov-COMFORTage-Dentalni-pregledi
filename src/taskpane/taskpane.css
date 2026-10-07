@@ -643,6 +643,26 @@ h2 {
   fill: #e0e0e0;
 }
 
+/* Implant (ICDAS 90/91): tooth missing, implant surfaces still examined */
+.icdas-tooth-cell.icdas-implant,
+.tooth-cell.implant {
+  outline: 1.5px dashed #1976d2;
+  outline-offset: -1px;
+  border-radius: 2px;
+}
+
+.icdas-tooth-cell.icdas-implant.selected {
+  outline: 2px solid #0078d4;
+  outline-offset: 1px;
+}
+
+.icdas-implant-note {
+  font-size: 12px;
+  color: #1976d2;
+  margin: 4px 0 8px;
+  line-height: 1.4;
+}
+
 /* Detail panel */
 .icdas-detail-panel {
   background: #fff;
@@ -1127,6 +1147,17 @@ h2 {
 
 tr.furc-disabled {
   opacity: 0.4;
+}
+
+.probing-tooth-num.implant {
+  color: #1976d2;
+  font-style: italic;
+}
+
+.probing-implant-badge {
+  font-size: 12px;
+  color: #1976d2;
+  font-style: italic;
 }
 
 /* ===== BOP Checkbox ===== */

@@ -1,6 +1,7 @@
 import { TabController } from "./tab-manager";
 import { SessionState } from "../model/session";
 import { FdiToothNumber, PBSurface, PBToothData, ICDASData, ExaminationSession } from "../model/types";
+import { isImplantTooth, isToothMissing } from "../model/tooth-status";
 import { ALL_TEETH, PROBING_ALL_SITES } from "../model/constants";
 import { SessionStore } from "../storage/session-store";
 import { ExcelStore } from "../storage/excel-store";
@@ -317,10 +318,11 @@ export class SaveReportTabController implements TabController {
 
     for (const tooth of ALL_TEETH) {
       const td = data[tooth];
-      if (td.status === "special") {
+      if (td.status === "special" && !isImplantTooth(td)) {
         if (td.specialCode !== null) assessed++;
         special++;
       } else {
+        if (isImplantTooth(td)) special++;
         let hasData = false;
         for (const surf of Object.values(td.surfaces)) {
           if (surf.restoration !== null || surf.caries !== null) hasData = true;
@@ -337,18 +339,8 @@ export class SaveReportTabController implements TabController {
   private calcTeethCount(s: ExaminationSession): { present: number; missing: number } {
     let missing = 0;
     for (const tooth of ALL_TEETH) {
-      const isMissing =
-        // ICDAS: special case (except 96 = can't examine)
-        (s.icdas[tooth].status === "special" &&
-          s.icdas[tooth].specialCode !== null &&
-          s.icdas[tooth].specialCode !== "96") ||
-        // Plaque: tooth not present
-        !s.plaque[tooth].present ||
-        // Bleeding: tooth not present
-        !s.bleeding[tooth].present ||
-        // Probing: tooth not present
-        !s.probing[tooth].present;
-      if (isMissing) missing++;
+      // ICDAS special case (except 96), or absent on any chart; implants count as missing
+      if (isToothMissing(s, tooth)) missing++;
     }
     return { present: 32 - missing, missing };
   }

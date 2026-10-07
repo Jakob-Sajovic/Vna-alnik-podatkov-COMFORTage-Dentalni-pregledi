@@ -42,6 +42,7 @@ import {
   ICDASVisualPosition,
 } from "../dental/chart-renderer";
 import { buildToothOutlinesSvg, TOOTH_CENTER_PCT, SITE_SPREAD } from "../dental/tooth-outlines";
+import { isImplantTooth, isToothMissing } from "../model/tooth-status";
 
 /**
  * Generate a print-friendly HTML report and open it in a new window.
@@ -372,7 +373,8 @@ function buildICDASTransposedTable(
     html += `<tr><td class="surface-label-cell">${ICDAS_SURFACE_FULL_NAMES[sf]}</td>`;
     for (const tooth of teeth) {
       const td = icdas[tooth];
-      if (td.status === "special") {
+      // Implants (90/91) keep their surface codes in the table
+      if (td.status === "special" && !isImplantTooth(td)) {
         html += `<td class="missing-cell">—</td>`;
       } else {
         const sd = td.surfaces[sf];
@@ -808,7 +810,7 @@ function autoCalcFdi(s: ExaminationSession): FdiQuestionnaireData {
   if (fdi.toothLoss === null) {
     fdi.toothLoss = "no";
     for (const t of ALL_TEETH) {
-      if (!s.plaque[t].present) { fdi.toothLoss = "yes"; break; }
+      if (isToothMissing(s, t)) { fdi.toothLoss = "yes"; break; }
     }
   }
 

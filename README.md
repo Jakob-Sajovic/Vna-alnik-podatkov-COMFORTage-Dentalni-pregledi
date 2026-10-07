@@ -30,7 +30,7 @@ output from either without changes.
 - **Patient data** — date, checkup number (1–10), name, surname, anonymized code, examiner
 - **Plaque index (VPI)** — interactive dental chart with 4-surface toggle per tooth, explicit missing-tooth buttons (✕), auto-calculated percentage
 - **Bleeding index (GBI)** — same chart layout, separate data, auto-calculated percentage; missing tooth state synced from VPI
-- **ICDAS assessment** — 5-surface cross-pattern chart, two dropdowns per surface (restoration + caries codes), special case codes for missing/unerupted teeth; code 60 (Popolna prevleka) preserves plaque/bleeding/probing data; bulk-set applies independently per code type
+- **ICDAS assessment** — 5-surface cross-pattern chart, two dropdowns per surface (restoration + caries codes), special case codes for missing/unerupted teeth; code 60 (Popolna prevleka) preserves plaque/bleeding/probing data; implant codes 90/91 keep the tooth counted as missing while VPI, GBI and surface codes stay recordable on the implant (probing, furcation and root caries are disabled); bulk-set applies independently per code type
 - **Probing depths** — 6-site measurements per tooth with color-coded area charts, furcation grading
 - **Radiographs (RTG)** — 10-film full-mouth periapical mount (2×5, viewer-left = patient-right), bulk import sorted by file name with capture-time fallback, per-slot rotate/replace/caption, free-text radiographic opinion; images downscaled to 1400 px / JPEG q0.82 and stored outside the data row
 - **Root caries** — per-tooth root caries assessment

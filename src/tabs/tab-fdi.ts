@@ -2,6 +2,7 @@ import { TabController } from "./tab-manager";
 import { SessionState } from "../model/session";
 import { FdiQuestionnaireData, PBSurface, ProbingSite } from "../model/types";
 import { ALL_TEETH, PROBING_ALL_SITES } from "../model/constants";
+import { isToothMissing } from "../model/tooth-status";
 
 const PB_SURFACES: PBSurface[] = ["mesial", "distal", "buccal", "lingual"];
 
@@ -240,9 +241,10 @@ export class FdiTabController implements TabController {
   }
 
   private calcToothLoss(): "no" | "yes" {
-    const plaque = this.session.getPlaque();
+    // Same rule as the tooth count: an implant (ICDAS 90/91) is a lost tooth
+    const s = this.session.getSession();
     for (const t of ALL_TEETH) {
-      if (!plaque[t].present) return "yes";
+      if (isToothMissing(s, t)) return "yes";
     }
     return "no";
   }

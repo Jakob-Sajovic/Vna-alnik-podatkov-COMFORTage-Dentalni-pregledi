@@ -29,6 +29,7 @@ import {
   getICDASSurfaceForPosition,
   ICDASVisualPosition,
 } from "../dental/chart-renderer";
+import { isImplantCode, isImplantTooth } from "../model/tooth-status";
 
 const TOOTH_SVG_SIZE = 32;
 const ICDAS_SURFACES: ICDASSurface[] = ["mesial", "distal", "buccal", "lingual", "occlusal"];
@@ -239,8 +240,11 @@ export class ICDASTabController implements TabController {
     const icdasData = this.session.getIcdas();
     const toothData = icdasData[tooth];
     const isSpecial = toothData.status === "special";
+    const implant = isImplantTooth(toothData);
+    // An implant is a special case whose surfaces are still examined
+    const showSurfaces = !isSpecial || implant;
 
-    let surfacesHtml: string;
+    let surfacesHtml = "";
 
     if (isSpecial) {
       // Special mode: single dropdown for the whole-tooth code
@@ -251,7 +255,7 @@ export class ICDASTabController implements TabController {
         )
         .join("");
 
-      surfacesHtml = `
+      surfacesHtml += `
         <div class="icdas-special-container">
           <label class="form-label">Posebna koda</label>
           <select class="icdas-special-select" id="icdas-special-code">
@@ -260,7 +264,17 @@ export class ICDASTabController implements TabController {
           </select>
         </div>
       `;
-    } else {
+      if (implant) {
+        surfacesHtml += `
+          <p class="icdas-implant-note">
+            Vsadek: zob se šteje kot manjkajoč, a se zanj vnašajo plak (VPI), krvavitev (GBI)
+            in kode površin. Sondiranje, razcepišča in koreninski karies se za vsadek ne vnašajo.
+          </p>
+        `;
+      }
+    }
+
+    if (showSurfaces) {
       // Bulk set controls for this tooth
       const restBulkOptions = Object.entries(RESTORATION_LABELS)
         .map(([code, desc]) => `<option value="${code}" title="${desc}">${code}</option>`)
@@ -335,7 +349,7 @@ export class ICDASTabController implements TabController {
         `;
       }).join("");
 
-      surfacesHtml = `
+      surfacesHtml += `
         ${bulkSetHtml}
         <div class="icdas-surfaces-grid">
           ${rows}
@@ -367,7 +381,9 @@ export class ICDASTabController implements TabController {
       specialSelect?.addEventListener("change", () =>
         this.handleSpecialCodeChange(tooth, specialSelect.value)
       );
-    } else {
+    }
+
+    if (showSurfaces) {
       const selects = this.detailPanel.querySelectorAll(".icdas-select") as NodeListOf<HTMLSelectElement>;
       selects.forEach((sel) => {
         sel.addEventListener("change", () => {
@@ -444,7 +460,7 @@ export class ICDASTabController implements TabController {
 
     const value = parseInt(selectEl.value, 10);
     const td = this.session.getIcdas()[tooth];
-    if (td.status === "special") return;
+    if (td.status === "special" && !isImplantTooth(td)) return;
 
     for (const surface of ICDAS_SURFACES) {
       if (codeType === "restoration") {
@@ -468,8 +484,11 @@ export class ICDASTabController implements TabController {
     if (!this.session.hasSession()) return;
 
     const td = this.session.getIcdas()[tooth];
-    td.status = "normal";
-    td.specialCode = null;
+    // An implant keeps its 90/91 code — only the surface codes are filled in
+    if (!isImplantTooth(td)) {
+      td.status = "normal";
+      td.specialCode = null;
+    }
     for (const surface of ICDAS_SURFACES) {
       td.surfaces[surface].restoration = 6 as RestorationCode;
       td.surfaces[surface].caries = 0 as CariesCode;
@@ -484,8 +503,10 @@ export class ICDASTabController implements TabController {
     if (!this.session.hasSession()) return;
 
     const td = this.session.getIcdas()[tooth];
-    td.status = "normal";
-    td.specialCode = null;
+    if (!isImplantTooth(td)) {
+      td.status = "normal";
+      td.specialCode = null;
+    }
     for (const surface of ICDAS_SURFACES) {
       td.surfaces[surface].restoration = 0 as RestorationCode;
       td.surfaces[surface].caries = 0 as CariesCode;
@@ -547,9 +568,26 @@ export class ICDASTabController implements TabController {
       return;
     }
 
-    this.session.getIcdas()[tooth].specialCode = value === "" ? null : (value as SpecialCaseCode);
-    this.session.touch();
+    const td = this.session.getIcdas()[tooth];
+    const wasImplant = isImplantTooth(td);
+    const becomesImplant = isImplantCode(value);
+
+    if (becomesImplant) {
+      // Implant: natural tooth missing, implant surfaces examined (plaque, bleeding, ICDAS)
+      this.session.setToothImplant(tooth, value as SpecialCaseCode);
+    } else {
+      // Leaving the implant state: clear the plaque/bleeding data again, like any missing tooth
+      if (wasImplant) this.session.setToothPresence(tooth, false);
+      td.specialCode = value === "" ? null : (value as SpecialCaseCode);
+      this.session.touch();
+    }
+
     this.refreshToothVisual(tooth);
+    if (wasImplant || becomesImplant) {
+      // The detail panel gains or loses the surface grid
+      this.showDetailForTooth(tooth);
+      this.refreshICDASRootCariesUI();
+    }
   }
 
   // ── Visual refresh ──────────────────────────────────────────────
@@ -563,9 +601,12 @@ export class ICDASTabController implements TabController {
     if (!cell) return;
 
     const toothData = this.session.getIcdas()[tooth];
+    const implant = isImplantTooth(toothData);
+    const greyedOut = toothData.status === "special" && !implant;
 
-    // Toggle special state on cell
-    cell.classList.toggle("icdas-special", toothData.status === "special");
+    // Toggle special / implant state on cell
+    cell.classList.toggle("icdas-special", greyedOut);
+    cell.classList.toggle("icdas-implant", implant);
 
     // Update each surface polygon
     const polygons = cell.querySelectorAll(".icdas-surface") as NodeListOf<SVGElement>;
@@ -582,7 +623,7 @@ export class ICDASTabController implements TabController {
       }
       poly.classList.remove("icdas-restored", "icdas-special-surface");
 
-      if (toothData.status === "special") {
+      if (greyedOut) {
         poly.classList.add("icdas-special-surface");
       } else {
         const surfData = toothData.surfaces[surface];

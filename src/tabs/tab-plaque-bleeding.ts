@@ -3,6 +3,7 @@ import { SessionState } from "../model/session";
 import { FdiToothNumber, PBSurface, PBToothData } from "../model/types";
 import { UPPER_RIGHT, UPPER_LEFT, LOWER_JAW_MIRRORED, ALL_TEETH, PB_SURFACE_TOOLTIPS } from "../model/constants";
 import { createPBToothSvg, getSurfaceForPosition, VisualPosition } from "../dental/chart-renderer";
+import { isImplantTooth } from "../model/tooth-status";
 
 type ChartType = "plaque" | "bleeding";
 
@@ -255,13 +256,17 @@ export class PlaqueBleedingTabController implements TabController {
       : this.session.getBleeding();
 
     const activeClass = chartType === "plaque" ? "active-plaque" : "active-bleeding";
+    const icdas = this.session.getIcdas();
 
-    // Update tooth cells (missing state)
+    // Update tooth cells (missing / implant state)
     const cells = container.querySelectorAll(".tooth-cell") as NodeListOf<HTMLElement>;
     cells.forEach((cell) => {
       const tooth = parseInt(cell.dataset.tooth || "0", 10) as FdiToothNumber;
       const toothData = data[tooth];
+      const implant = isImplantTooth(icdas[tooth]);
       cell.classList.toggle("missing", !toothData.present);
+      cell.classList.toggle("implant", implant);
+      cell.title = implant ? `Zob ${tooth}: vsadek (ICDAS ${icdas[tooth].specialCode})` : "";
     });
 
     // Update surface polygons

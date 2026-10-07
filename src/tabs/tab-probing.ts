@@ -20,6 +20,7 @@ import {
   getVisualLingualSites,
 } from "../model/constants";
 import { buildToothOutlinesSvg, TOOTH_CENTER_PCT, SITE_SPREAD } from "../dental/tooth-outlines";
+import { isImplantTooth } from "../model/tooth-status";
 
 function getDepthColor(avg: number): string {
   for (const tier of PROBING_DEPTH_COLORS) {
@@ -295,13 +296,16 @@ export class ProbingTabController implements TabController {
   private refreshToothNumStyles(): void {
     if (!this.panel || !this.session.hasSession()) return;
     const data = this.session.getProbing();
+    const icdas = this.session.getIcdas();
 
     const nums = this.panel.querySelectorAll(".probing-tooth-num") as NodeListOf<HTMLElement>;
     nums.forEach(el => {
       const t = parseInt(el.dataset.tooth || "0", 10) as FdiToothNumber;
       const td = data[t];
       if (td) {
-        el.classList.toggle("missing", !td.present);
+        const implant = isImplantTooth(icdas[t]);
+        el.classList.toggle("missing", !td.present && !implant);
+        el.classList.toggle("implant", implant);
         el.classList.toggle("selected", t === this.selectedTooth);
       }
     });
@@ -368,13 +372,19 @@ export class ProbingTabController implements TabController {
       return html;
     };
 
+    // An implant (ICDAS 90/91) is never probed; the state is changed on the ICDAS tab
+    const icdasTooth = this.session.getIcdas()[tooth];
+    const headerAction = isImplantTooth(icdasTooth)
+      ? `<span class="probing-implant-badge">Vsadek (ICDAS ${icdasTooth.specialCode}) — brez sondiranja</span>`
+      : `<button class="btn btn-secondary probing-missing-btn" style="min-height:36px;padding:4px 12px;font-size:13px;">
+            ${td.present ? "Označi kot manjkajoč" : "Označi kot prisoten"}
+          </button>`;
+
     this.detailContainer.innerHTML = `
       <div class="probing-detail-panel">
         <div class="probing-detail-header">
           <span class="probing-detail-tooth-label">Zob ${tooth}</span>
-          <button class="btn btn-secondary probing-missing-btn" style="min-height:36px;padding:4px 12px;font-size:13px;">
-            ${td.present ? "Označi kot manjkajoč" : "Označi kot prisoten"}
-          </button>
+          ${headerAction}
         </div>
         ${buildInputs(visualBuccal, "Bukalno")}
         ${buildInputs(visualLingual, "Lingvalno")}
